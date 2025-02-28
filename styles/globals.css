@@ -289,7 +289,7 @@ a:hover {
 
 @layer components {
   .article-content {
-    @apply prose prose-gray dark:prose-invert max-w-none;
+    @apply prose dark:prose-invert max-w-none;
   }
   
   .article-content h1 {

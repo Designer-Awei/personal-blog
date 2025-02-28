@@ -8,9 +8,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { title, content, excerpt, date, slug, category } = req.body;
+    console.log("收到创建文章请求:", req.body);
+    const { title, content, excerpt, date, slug, category, coverImage } = req.body;
     
     if (!title || !content || !slug) {
+      console.log("缺少必要信息:", { title, content, slug });
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
 
@@ -37,14 +39,24 @@ export default async function handler(req, res) {
       excerpt: excerpt || title,
       category: category || '未分类'
     };
+    
+    // 如果有封面图片，添加到frontmatter
+    if (coverImage) {
+      frontmatter.coverImage = coverImage;
+    }
 
+    // 将普通文本内容转换为适合保存的格式
+    // 对于普通文本，我们将其包装在一个段落中
+    const formattedContent = content.split('\n\n').map(paragraph => paragraph.trim()).filter(Boolean).join('\n\n');
+    
     // 使用gray-matter格式化文章内容
-    const articleContent = matter.stringify(content, frontmatter);
+    const articleContent = matter.stringify(formattedContent, frontmatter);
     
     // 保存文件
     const filePath = path.join(postsDir, `${uniqueSlug}.md`);
     fs.writeFileSync(filePath, articleContent, 'utf8');
 
+    console.log("文章创建成功:", uniqueSlug);
     return res.status(200).json({ 
       success: true, 
       message: '文章创建成功',

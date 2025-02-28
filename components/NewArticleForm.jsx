@@ -50,26 +50,50 @@ export default function NewArticleForm({ onSubmit, onCancel, isSubmitting }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log("表单提交中...");
     
     if (!title || !content) {
       alert('标题和内容不能为空');
       return;
     }
     
-    // 生成slug
-    const slug = title
-      .toLowerCase()
-      .replace(/[^\w\s]/gi, '')
-      .replace(/\s+/g, '-');
+    // 生成slug - 修改逻辑以处理汉字
+    let generatedSlug = '';
+    
+    // 如果标题只包含英文和数字，使用标准方式生成slug
+    if (/^[a-zA-Z0-9\s]+$/.test(title)) {
+      generatedSlug = title
+        .toLowerCase()
+        .replace(/[^\w\s]/gi, '')
+        .replace(/\s+/g, '-');
+    } else {
+      // 对于包含汉字的标题，使用时间戳和前几个字符
+      const timestamp = new Date().getTime();
+      const prefix = title.substring(0, 10)
+        .replace(/\s+/g, ''); // 移除空格
+      
+      // 使用时间戳确保唯一性
+      generatedSlug = `article-${timestamp}`;
+    }
+    
+    console.log("生成的slug:", generatedSlug);
+    
+    if (!generatedSlug) {
+      // 如果仍然无法生成slug，使用时间戳作为后备方案
+      generatedSlug = `article-${new Date().getTime()}`;
+      console.log("使用后备slug:", generatedSlug);
+    }
     
     const articleData = {
       title,
       content,
       excerpt: excerpt || title,
       date,
-      slug,
+      slug: generatedSlug,
       category
     };
+    
+    console.log("准备提交的文章数据:", articleData);
     
     // 如果有图片，处理图片上传
     if (imageFile) {
@@ -82,16 +106,22 @@ export default function NewArticleForm({ onSubmit, onCancel, isSubmitting }) {
           body: formData,
         });
         
-        const uploadData = await uploadResponse.json();
-        
-        if (uploadResponse.ok) {
-          articleData.coverImage = uploadData.imageUrl;
+        if (!uploadResponse.ok) {
+          throw new Error('图片上传失败');
         }
+        
+        const uploadData = await uploadResponse.json();
+        articleData.coverImage = uploadData.imageUrl;
       } catch (error) {
         console.error('上传图片时出错:', error);
+        alert('图片上传失败，但文章内容将被保存');
       }
     }
     
+    // 再次确认slug存在
+    console.log("最终提交的数据:", JSON.stringify(articleData));
+    
+    // 调用父组件的onSubmit函数
     onSubmit(articleData);
   };
 
@@ -102,11 +132,11 @@ export default function NewArticleForm({ onSubmit, onCancel, isSubmitting }) {
       transition={{ duration: 0.3 }}
     >
       <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle>创建新文章</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
+          <CardHeader>
+            <CardTitle>创建新文章</CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="mb-4">
               <label className="block text-sm font-medium mb-1">标题</label>
               <Input
@@ -179,7 +209,7 @@ export default function NewArticleForm({ onSubmit, onCancel, isSubmitting }) {
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="使用Markdown格式编写文章内容"
+                placeholder="请输入文章内容"
                 className="w-full min-h-[300px] p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700"
                 required
               />
@@ -223,25 +253,24 @@ export default function NewArticleForm({ onSubmit, onCancel, isSubmitting }) {
                 </div>
               )}
             </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            取消
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? '保存中...' : '保存文章'}
-          </Button>
-        </CardFooter>
+          </CardContent>
+          <CardFooter className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? '保存中...' : '保存文章'}
+            </Button>
+          </CardFooter>
+        </form>
       </Card>
     </motion.div>
   );

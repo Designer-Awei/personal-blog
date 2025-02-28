@@ -8,14 +8,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { slug, title, content, excerpt, date } = req.body;
+    const { slug, title, content, excerpt, date, category, coverImage } = req.body;
     
     if (!slug || !title || !content) {
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
     
-    const markdownDir = path.join(process.cwd(), 'markdown');
-    const filePath = path.join(markdownDir, `${slug}.md`);
+    // 修改为正确的文章目录
+    const postsDirectory = path.join(process.cwd(), 'posts');
+    const filePath = path.join(postsDirectory, `${slug}.md`);
     
     // 检查文件是否存在
     if (!fs.existsSync(filePath)) {
@@ -26,8 +27,14 @@ export default async function handler(req, res) {
     const frontmatter = {
       title,
       date,
-      excerpt: excerpt || title
+      excerpt: excerpt || title,
+      category: category || '未分类'
     };
+    
+    // 如果有封面图片，添加到frontmatter
+    if (coverImage) {
+      frontmatter.coverImage = coverImage;
+    }
     
     // 使用gray-matter格式化内容
     const fileContent = matter.stringify(content, frontmatter);

@@ -11,6 +11,31 @@ export default function NewArticle() {
   const handleSubmit = async (articleData) => {
     setIsSubmitting(true);
     try {
+      console.log("new-article页面接收到的数据:", articleData);
+      
+      // 确保slug存在
+      if (!articleData.slug) {
+        // 如果没有slug，尝试从标题生成
+        // 修改逻辑以处理汉字
+        if (/^[a-zA-Z0-9\s]+$/.test(articleData.title)) {
+          articleData.slug = articleData.title
+            .toLowerCase()
+            .replace(/[^\w\s]/gi, '')
+            .replace(/\s+/g, '-');
+        } else {
+          // 对于包含汉字的标题，使用时间戳
+          const timestamp = new Date().getTime();
+          articleData.slug = `article-${timestamp}`;
+        }
+        
+        // 如果仍然无法生成slug，使用时间戳作为后备方案
+        if (!articleData.slug) {
+          articleData.slug = `article-${new Date().getTime()}`;
+        }
+        
+        console.log("在new-article页面生成的slug:", articleData.slug);
+      }
+      
       const response = await fetch('/api/create-article', {
         method: 'POST',
         headers: {

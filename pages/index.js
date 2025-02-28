@@ -29,6 +29,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
   const router = useRouter();
   const searchRef = useRef(null);
   const [isPhoneVisible, setIsPhoneVisible] = useState(true);
+  const [isEmailVisible, setIsEmailVisible] = useState(true);
 
   // 初始化时从localStorage加载最近搜索记录
   useEffect(() => {
@@ -369,12 +370,20 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                 <p className="text-sm text-gray-500 dark:text-gray-400">{userConfig.occupation || '设计师'}</p>
               </div>
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Mail size={16} className="text-primary" />
-                  <p><strong>邮箱:</strong> {userConfig.email}</p>
+                <div className="flex items-start gap-2">
+                  <Mail size={16} className="text-primary mt-1" />
+                  <div className="flex items-center">
+                    <p><strong>邮箱:</strong> {isEmailVisible ? userConfig.email : '****@**.com'}</p>
+                    <button 
+                      onClick={() => setIsEmailVisible(!isEmailVisible)} 
+                      className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      {isEmailVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Phone size={16} className="text-primary" />
+                <div className="flex items-start gap-2">
+                  <Phone size={16} className="text-primary mt-1" />
                   <div className="flex items-center">
                     <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}</p>
                     <button 
@@ -385,12 +394,12 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-primary" />
+                <div className="flex items-start gap-2">
+                  <MapPin size={16} className="text-primary mt-1" />
                   <p><strong>位置:</strong> {userConfig.location}</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Code size={16} className="text-primary" />
+                <div className="flex items-start gap-2">
+                  <Code size={16} className="text-primary mt-1" />
                   <p><strong>技能:</strong> {userConfig.skills}</p>
                 </div>
                 <div className="flex items-center justify-between mt-4 border-t pt-3">
@@ -429,7 +438,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                 whileTap={{ scale: 0.95 }}
               >
                 <Settings size={16} />
-                <span>编辑资料</span>
+                <span>个人详情</span>
               </motion.button>
             </CardFooter>
           </Card>
@@ -528,53 +537,79 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                 <motion.div key={post.slug} variants={item}>
                   <Link href={`/posts/${post.slug}`} passHref legacyBehavior>
                     <a className="block h-full">
-                      <Card className="h-full cursor-pointer card-hover-effect">
-                        <CardHeader>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <CardTitle>{post.title}</CardTitle>
-                              <CardDescription className="flex items-center gap-1">
-                                <Calendar size={14} />
-                                {new Date(post.date).toLocaleDateString('zh-CN')}
-                              </CardDescription>
-                            </div>
-                            <Badge>{post.category}</Badge>
+                      <Card className="h-full cursor-pointer card-hover-effect overflow-hidden">
+                        <div className="flex flex-row h-full">
+                          {/* 左侧图片区域 - 占1/3宽度，铺满无边框 */}
+                          <div className="w-1/3 relative" style={{ minHeight: "180px" }}>
+                            {post.coverImage ? (
+                              <div className="absolute inset-0">
+                                <img 
+                                  src={post.coverImage} 
+                                  alt={post.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div 
+                                className="absolute inset-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center"
+                              >
+                                <span className="text-gray-400 dark:text-gray-600">暂无图片</span>
+                              </div>
+                            )}
                           </div>
-                        </CardHeader>
-                        <CardContent>
-                          <p>{post.excerpt}</p>
-                        </CardContent>
-                        <CardFooter className="flex justify-between">
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={(e) => handleLike(post.slug, e)}
-                              className="flex items-center space-x-1 text-gray-500 hover:text-red-500"
-                            >
-                              <Heart 
-                                size={18} 
-                                className={likedPosts.includes(post.slug) ? "fill-red-500 text-red-500" : ""} 
-                              />
-                            </button>
-                            <button 
-                              onClick={(e) => handleFavorite(post.slug, e)}
-                              className="flex items-center space-x-1 text-gray-500 hover:text-yellow-500"
-                            >
-                              <Star 
-                                size={18} 
-                                className={favoritePosts.includes(post.slug) ? "fill-yellow-500 text-yellow-500" : ""} 
-                              />
-                            </button>
-                            <button 
-                              className="flex items-center cursor-pointer text-red-500 hover:text-red-700"
-                              onClick={(e) => handleDeleteArticle(e, post.slug)}
-                            >
-                              <Trash size={16} />
-                            </button>
+                          
+                          {/* 右侧内容区域 - 占2/3宽度 */}
+                          <div className="w-2/3 flex flex-col">
+                            <CardHeader className="pb-2">
+                              <div className="flex justify-between items-start">
+                                <div className="pr-3 flex-1">
+                                  <CardTitle className="line-clamp-2 text-lg" title={post.title}>{post.title}</CardTitle>
+                                  <CardDescription className="flex items-center gap-1 mt-1">
+                                    <Calendar size={14} />
+                                    {new Date(post.date).toLocaleDateString('zh-CN')}
+                                  </CardDescription>
+                                </div>
+                                <Badge className="whitespace-nowrap shrink-0 ml-2">{post.category}</Badge>
+                              </div>
+                            </CardHeader>
+                            
+                            <CardContent className="py-2">
+                              <p className="line-clamp-2 text-sm" title={post.excerpt}>{post.excerpt}</p>
+                            </CardContent>
+                            
+                            <CardFooter className="flex justify-between mt-auto pt-2">
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={(e) => handleLike(post.slug, e)}
+                                  className="flex items-center space-x-1 text-gray-500 hover:text-red-500"
+                                >
+                                  <Heart 
+                                    size={18} 
+                                    className={likedPosts.includes(post.slug) ? "fill-red-500 text-red-500" : ""} 
+                                  />
+                                </button>
+                                <button 
+                                  onClick={(e) => handleFavorite(post.slug, e)}
+                                  className="flex items-center space-x-1 text-gray-500 hover:text-yellow-500"
+                                >
+                                  <Star 
+                                    size={18} 
+                                    className={favoritePosts.includes(post.slug) ? "fill-yellow-500 text-yellow-500" : ""} 
+                                  />
+                                </button>
+                                <button 
+                                  className="flex items-center cursor-pointer text-red-500 hover:text-red-700"
+                                  onClick={(e) => handleDeleteArticle(e, post.slug)}
+                                >
+                                  <Trash size={16} />
+                                </button>
+                              </div>
+                              <p className="text-sm text-blue-500 flex items-center gap-1 group">
+                                阅读更多 
+                              </p>
+                            </CardFooter>
                           </div>
-                          <p className="text-sm text-blue-500 flex items-center gap-1 group">
-                            阅读更多 
-                          </p>
-                        </CardFooter>
+                        </div>
                       </Card>
                     </a>
                   </Link>
@@ -733,7 +768,8 @@ export async function getServerSideProps() {
       title: data.title,
       date: data.date,
       category: data.category || '未分类',
-      excerpt: data.excerpt
+      excerpt: data.excerpt,
+      coverImage: data.coverImage || null
     };
   });
   

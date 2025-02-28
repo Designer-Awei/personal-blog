@@ -60,7 +60,9 @@ export default function Post({ frontmatter, slug, content }) {
                     title: updatedArticle.title,
                     content: updatedArticle.content,
                     excerpt: updatedArticle.excerpt,
-                    date: updatedArticle.date
+                    date: updatedArticle.date,
+                    category: updatedArticle.category,
+                    coverImage: updatedArticle.coverImage
                 }),
             });
 
@@ -204,7 +206,9 @@ export default function Post({ frontmatter, slug, content }) {
                             title: frontmatter.title,
                             content: content,
                             excerpt: frontmatter.excerpt,
-                            date: frontmatter.date
+                            date: frontmatter.date,
+                            category: frontmatter.category,
+                            coverImage: frontmatter.coverImage
                         }}
                         onSave={handleSaveArticle}
                         onCancel={handleCancelEdit}
@@ -249,9 +253,20 @@ export default function Post({ frontmatter, slug, content }) {
                                 {new Date(frontmatter.date).toLocaleDateString('zh-CN')}
                             </p>
                         </CardHeader>
+                        
+                        {frontmatter.coverImage && (
+                            <div className="px-6 pb-4">
+                                <img 
+                                    src={frontmatter.coverImage} 
+                                    alt={frontmatter.title}
+                                    className="w-full h-auto rounded-lg object-cover max-h-[400px]"
+                                />
+                            </div>
+                        )}
+                        
                         <CardContent>
                             <div 
-                                className="prose dark:prose-invert max-w-none animate-fade-in"
+                                className="prose dark:prose-invert max-w-none animate-fade-in article-content"
                                 dangerouslySetInnerHTML={{ __html: marked(content) }}
                             />
                         </CardContent>
@@ -353,4 +368,18 @@ export async function getStaticProps({ params: { slug } }) {
         // 增加重新验证时间，以便内容更新时重新生成页面
         revalidate: 60
     };
+}
+
+export const runtime = 'nodejs';
+
+export function Head() {
+    return (
+        <>
+            <style jsx global>{`
+                .article-content p {
+                    text-indent: 2em;
+                }
+            `}</style>
+        </>
+    );
 } 

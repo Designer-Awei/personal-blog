@@ -15,14 +15,19 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 文章文件路径
-    const filePath = path.join(process.cwd(), 'markdown', `${slug}.md`);
+    console.log(`尝试删除文章: ${slug}`);
+    
+    // 文章文件路径 - 修改为posts目录
+    const postsDir = path.join(process.cwd(), 'posts');
+    const filePath = path.join(postsDir, `${slug}.md`);
     
     // 检查文件是否存在
     if (!fs.existsSync(filePath)) {
+      console.log(`文件不存在: ${filePath}`);
       return res.status(404).json({ message: '文章不存在' });
     }
     
+    console.log(`删除文件: ${filePath}`);
     // 删除文件
     fs.unlinkSync(filePath);
     
@@ -42,6 +47,7 @@ export default async function handler(req, res) {
     // 保存更新后的用户配置
     updateUserConfig(userConfig);
     
+    console.log(`文章删除成功: ${slug}`);
     return res.status(200).json({ 
       success: true, 
       message: '文章已成功删除' 

@@ -5,7 +5,7 @@
   "/api/interactions/like": "pages/api/interactions/like.js",
   "/": "pages/index.js",
   "/api/interactions/favorite": "pages/api/interactions/favorite.js",
-  "/profile": "pages/profile.js",
+  "/posts/[slug]": "pages/posts/[slug].js",
   "/api/posts": "pages/api/posts.js",
-  "/api/user-config": "pages/api/user-config.js"
+  "/profile": "pages/profile.js"
 }

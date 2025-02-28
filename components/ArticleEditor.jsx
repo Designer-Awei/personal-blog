@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Save, X } from 'lucide-react';
+import { Save, X, Image } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ArticleEditor({ article, onSave, onCancel }) {
@@ -13,6 +13,8 @@ export default function ArticleEditor({ article, onSave, onCancel }) {
   const [category, setCategory] = useState(article.category || '未分类');
   const [customCategories, setCustomCategories] = useState([]);
   const [newCustomCategory, setNewCustomCategory] = useState('');
+  const [imagePreview, setImagePreview] = useState(article.coverImage || null);
+  const [imageFile, setImageFile] = useState(null);
 
   // 预定义的文章类别
   const predefinedCategories = ['技术', '设计', '生活', '学习', '工作', '未分类'];
@@ -36,14 +38,60 @@ export default function ArticleEditor({ article, onSave, onCancel }) {
     }
   };
 
-  const handleSave = () => {
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImagePreview(null);
+    setImageFile(null);
+  };
+
+  const handleSave = async () => {
+    let coverImage = article.coverImage;
+
+    // 如果有新上传的图片，处理图片上传
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append('image', imageFile);
+      
+      try {
+        const uploadResponse = await fetch('/api/upload-image', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error('图片上传失败');
+        }
+        
+        const uploadData = await uploadResponse.json();
+        coverImage = uploadData.imageUrl;
+      } catch (error) {
+        console.error('上传图片时出错:', error);
+        alert('图片上传失败，但文章内容将被保存');
+      }
+    } else if (imagePreview === null && article.coverImage) {
+      // 如果用户移除了图片
+      coverImage = null;
+    }
+
     onSave({
       ...article,
       title,
       content,
       excerpt,
       date,
-      category
+      category,
+      coverImage
     });
   };
 
@@ -117,6 +165,44 @@ export default function ArticleEditor({ article, onSave, onCancel }) {
             <div className="mt-2">
               <p className="text-sm text-gray-500">当前选择: <span className="font-medium">{category}</span></p>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">封面图片</label>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('edit-image-upload').click()}
+                className="flex items-center gap-1"
+              >
+                <Image size={16} />
+                <span>选择图片</span>
+              </Button>
+              <input
+                id="edit-image-upload"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+            
+            {imagePreview && (
+              <div className="mt-2 relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-h-40 rounded-md"
+                />
+                <button
+                  type="button"
+                  onClick={removeImage}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">内容</label>
