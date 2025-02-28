@@ -1,0 +1,22 @@
+{
+  "name": "Designer-Awei",
+  "email": "1974379701@qq.com",
+  "location": "浙江杭州",
+  "skills": "Solidworks、KeyShot、Cursor",
+  "profileImage": "/uploads/profile-1740731560989.jpg",
+  "bio": "热爱设计和技术，喜欢分享知识和经验。在这个博客上，我会分享我的设计心得和技术见解。",
+  "socialLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com"
+    },
+    {
+      "name": "Cursor",
+      "url": "https://cursor.sh"
+    },
+    {
+      "name": "Trea",
+      "url": "https://trea.com"
+    }
+  ]
+}
