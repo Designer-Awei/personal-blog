@@ -2,9 +2,10 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,jsx}',
+    './components/**/*.{js,jsx}',
+    './app/**/*.{js,jsx}',
+    './src/**/*.{js,jsx}',
   ],
   theme: {
     container: {
@@ -22,11 +23,11 @@ module.exports = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "hsl(var(--primary))",
+          DEFAULT: "var(--theme-primary)",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "hsl(var(--secondary))",
+          DEFAULT: "var(--theme-secondary)",
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
@@ -55,41 +56,21 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      typography: {
-        DEFAULT: {
-          css: {
-            maxWidth: '100%',
-            color: 'hsl(var(--foreground))',
-            a: {
-              color: 'hsl(var(--primary))',
-              '&:hover': {
-                color: 'hsl(var(--primary))',
-              },
-            },
-            h1: {
-              color: 'hsl(var(--foreground))',
-            },
-            h2: {
-              color: 'hsl(var(--foreground))',
-            },
-            h3: {
-              color: 'hsl(var(--foreground))',
-            },
-            h4: {
-              color: 'hsl(var(--foreground))',
-            },
-            code: {
-              color: 'hsl(var(--foreground))',
-            },
-            strong: {
-              color: 'hsl(var(--foreground))',
-            },
-          },
+      keyframes: {
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/typography'),
-  ],
+  plugins: [require("tailwindcss-animate")],
 } 

@@ -13,27 +13,39 @@ export default async function handler(req, res) {
     if (!slug || !title || !content) {
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
-
-    // 构建文章的frontmatter
+    
+    const markdownDir = path.join(process.cwd(), 'markdown');
+    const filePath = path.join(markdownDir, `${slug}.md`);
+    
+    // 检查文件是否存在
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: '文章不存在' });
+    }
+    
+    // 构建frontmatter
     const frontmatter = {
       title,
       date,
-      excerpt
+      excerpt: excerpt || title
     };
-
-    // 使用gray-matter格式化文章内容
-    const articleContent = matter.stringify(content, frontmatter);
     
-    // 保存文件
-    const filePath = path.join(process.cwd(), 'markdown', `${slug}.md`);
-    fs.writeFileSync(filePath, articleContent, 'utf8');
-
+    // 使用gray-matter格式化内容
+    const fileContent = matter.stringify(content, frontmatter);
+    
+    // 写入文件
+    fs.writeFileSync(filePath, fileContent);
+    
     return res.status(200).json({ 
       success: true, 
-      message: '文章保存成功'
+      message: '文章保存成功',
+      slug
     });
   } catch (error) {
     console.error('保存文章时出错:', error);
-    return res.status(500).json({ message: '服务器错误', error: error.message });
+    return res.status(500).json({ 
+      success: false,
+      message: '服务器错误', 
+      error: error.message 
+    });
   }
 } 

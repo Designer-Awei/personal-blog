@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
  
-    --primary: 172 70% 50%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
  
     --secondary: 210 40% 96.1%;
@@ -22,7 +22,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
  
-    --accent: 152 81% 96%;
+    --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
  
     --destructive: 0 84.2% 60.2%;
@@ -30,9 +30,14 @@
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 172 70% 50%;
+    --ring: 222.2 84% 4.9%;
  
     --radius: 0.5rem;
+    
+    /* 主题颜色变量 */
+    --theme-primary: #3b82f6;
+    --theme-secondary: #93c5fd;
+    --theme-bg: #f0f7ff;
   }
  
   .dark {
@@ -45,7 +50,7 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
  
-    --primary: 172 70% 50%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
  
     --secondary: 217.2 32.6% 17.5%;
@@ -62,7 +67,8 @@
  
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 172 70% 50%;
+    --ring: 212.7 26.8% 83.9%;
+    --theme-bg: #0f172a;
   }
 }
  
@@ -71,9 +77,40 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-gray-900 dark:text-gray-50 transition-colors duration-300;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: var(--theme-bg);
   }
+}
+
+/* 主题颜色定义 - 蓝色 */
+html[data-theme-color="blue"] {
+  --theme-primary: #3b82f6;
+  --theme-secondary: #93c5fd;
+}
+
+/* 主题颜色定义 - 绿色 */
+html[data-theme-color="green"] {
+  --theme-primary: #22c55e;
+  --theme-secondary: #86efac;
+}
+
+/* 主题颜色定义 - 紫色 */
+html[data-theme-color="purple"] {
+  --theme-primary: #8b5cf6;
+  --theme-secondary: #c4b5fd;
+}
+
+/* 主题颜色定义 - 粉色 */
+html[data-theme-color="pink"] {
+  --theme-primary: #ec4899;
+  --theme-secondary: #f9a8d4;
+}
+
+/* 主题颜色定义 - 橙色 */
+html[data-theme-color="orange"] {
+  --theme-primary: #f97316;
+  --theme-secondary: #fdba74;
 }
 
 body {
@@ -120,15 +157,16 @@ a:hover {
 
 /* 添加卡片悬停动画 */
 .card-hover-effect {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.card-hover-effect:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  @apply transition-all duration-300 hover:shadow-md;
 }
 
 /* 添加渐变背景 */
 .gradient-bg {
+  background: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 50%, #f1f8e9 100%);
+}
+
+/* 亮色模式下的渐变背景 */
+:root:not(.dark) .light-gradient-bg {
   background: linear-gradient(135deg, #e0f7fa 0%, #e8f5e9 50%, #f1f8e9 100%);
 }
 
@@ -143,6 +181,56 @@ a:hover {
 
 .animate-pulse-slow {
   animation: pulse 3s infinite;
+}
+
+/* 添加浮动按钮样式 */
+.floating-button {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 50;
+}
+
+.floating-button:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.floating-button:active {
+  transform: translateY(0) scale(0.95);
+}
+
+/* 点赞和收藏按钮样式 */
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .action-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-button.active {
+  color: #f43f5e;
+}
+
+.action-button.active-star {
+  color: #eab308;
 }
 
 @keyframes fadeIn {
@@ -171,5 +259,84 @@ a:hover {
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+/* 主题颜色样式 */
+.text-primary {
+  color: var(--theme-primary);
+}
+
+.bg-primary {
+  background-color: var(--theme-primary);
+}
+
+.border-primary {
+  border-color: var(--theme-primary);
+}
+
+.text-secondary {
+  color: var(--theme-secondary);
+}
+
+.bg-secondary {
+  background-color: var(--theme-secondary);
+}
+
+.border-secondary {
+  border-color: var(--theme-secondary);
+}
+
+@layer components {
+  .article-content {
+    @apply prose prose-gray dark:prose-invert max-w-none;
+  }
+  
+  .article-content h1 {
+    @apply text-3xl font-bold mb-4;
+  }
+  
+  .article-content h2 {
+    @apply text-2xl font-bold mt-6 mb-3;
+  }
+  
+  .article-content h3 {
+    @apply text-xl font-bold mt-5 mb-2;
+  }
+  
+  .article-content p {
+    @apply mb-4;
+  }
+  
+  .article-content ul, .article-content ol {
+    @apply mb-4 ml-6;
+  }
+  
+  .article-content li {
+    @apply mb-1;
+  }
+  
+  .article-content blockquote {
+    @apply border-l-4 border-gray-300 dark:border-gray-700 pl-4 italic my-4;
+  }
+  
+  .article-content a {
+    @apply text-blue-600 dark:text-blue-400 hover:underline;
+  }
+  
+  .article-content img {
+    @apply max-w-full h-auto my-4 rounded-md;
+  }
+  
+  .article-content pre {
+    @apply bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto my-4;
+  }
+  
+  .article-content code {
+    @apply bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm;
+  }
+  
+  .article-content pre code {
+    @apply bg-transparent p-0;
   }
 } 

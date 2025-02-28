@@ -1,0 +1,15 @@
+{
+  "likes": [],
+  "favorites": [],
+  "like": [
+    "article-6",
+    "article-4",
+    "article-8"
+  ],
+  "favorite": [
+    "article-6",
+    "article-2",
+    "article-3",
+    "article-7"
+  ]
+}

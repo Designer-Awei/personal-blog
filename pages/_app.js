@@ -1,10 +1,13 @@
 import { ThemeProvider } from '../components/theme-provider'
 import '../styles/globals.css'
+import { ToastProvider } from '../components/ui/toast'
 
 export default function App({ Component, pageProps }) {
     return (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <Component {...pageProps} />
+            <ToastProvider>
+                <Component {...pageProps} />
+            </ToastProvider>
         </ThemeProvider>
     );
 } 
