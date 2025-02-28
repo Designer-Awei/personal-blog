@@ -9,6 +9,8 @@ import { Input } from '../components/ui/input';
 import Layout from '../components/layout';
 import ImageUploader from '../components/ImageUploader';
 import { getUserConfig } from '../lib/userConfig';
+import { motion } from 'framer-motion';
+import { Mail, MapPin, Code, Search, Calendar, ArrowRight } from 'lucide-react';
 
 export default function Home({ posts, userConfig: initialUserConfig }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,12 +54,38 @@ export default function Home({ posts, userConfig: initialUserConfig }) {
     }
   };
 
+  // 动画变体
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
     <Layout>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="grid grid-cols-1 md:grid-cols-4 gap-6"
+      >
         {/* 个人信息区域 - 左侧 */}
-        <div className="md:col-span-1 sticky top-4 self-start">
-          <Card className="shadow-md">
+        <motion.div 
+          className="md:col-span-1 sticky top-4 self-start"
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="shadow-md card-hover-effect">
             <CardHeader>
               <CardTitle>关于我</CardTitle>
             </CardHeader>
@@ -67,73 +95,117 @@ export default function Home({ posts, userConfig: initialUserConfig }) {
                   onImageUpdate={handleImageUpdate}
                   currentImage={profileImage}
                 />
-                <h2 className="text-xl font-bold">{userConfig.name}</h2>
+                <motion.h2 
+                  className="text-xl font-bold"
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
+                >
+                  {userConfig.name}
+                </motion.h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">设计师</p>
               </div>
-              <div className="space-y-2">
-                <p><strong>邮箱:</strong> {userConfig.email}</p>
-                <p><strong>位置:</strong> {userConfig.location}</p>
-                <p><strong>技能:</strong> {userConfig.skills}</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Mail size={16} className="text-primary" />
+                  <p><strong>邮箱:</strong> {userConfig.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin size={16} className="text-primary" />
+                  <p><strong>位置:</strong> {userConfig.location}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Code size={16} className="text-primary" />
+                  <p><strong>技能:</strong> {userConfig.skills}</p>
+                </div>
                 <p className="mt-4">{userConfig.bio}</p>
               </div>
             </CardContent>
             <CardFooter>
               <div className="flex space-x-4">
                 {userConfig.socialLinks.map((link, index) => (
-                  <a 
+                  <motion.a 
                     key={index} 
                     href={link.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-blue-500 hover:text-blue-700"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     {link.name}
-                  </a>
+                  </motion.a>
                 ))}
               </div>
             </CardFooter>
           </Card>
-        </div>
+        </motion.div>
 
         {/* 文章列表区域 - 右侧 */}
-        <div className="md:col-span-3">
-          <div className="mb-6">
+        <motion.div 
+          className="md:col-span-3"
+          initial={{ x: 20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="mb-6 relative">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search size={18} className="text-gray-400" />
+            </div>
             <Input
               type="text"
               placeholder="搜索文章..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full"
+              className="w-full pl-10"
             />
           </div>
 
           {filteredPosts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredPosts.map((post) => (
-                <Link href={`/posts/${post.slug}`} key={post.slug}>
-                  <Card className="h-full cursor-pointer hover:shadow-lg transition-shadow duration-300">
-                    <CardHeader>
-                      <CardTitle>{post.title}</CardTitle>
-                      <CardDescription>{new Date(post.date).toLocaleDateString('zh-CN')}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p>{post.excerpt}</p>
-                    </CardContent>
-                    <CardFooter>
-                      <p className="text-sm text-blue-500">阅读更多 →</p>
-                    </CardFooter>
-                  </Card>
-                </Link>
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              variants={container}
+              initial="hidden"
+              animate="show"
+            >
+              {filteredPosts.map((post, index) => (
+                <motion.div key={post.slug} variants={item}>
+                  <Link href={`/posts/${post.slug}`}>
+                    <Card className="h-full cursor-pointer card-hover-effect">
+                      <CardHeader>
+                        <CardTitle>{post.title}</CardTitle>
+                        <CardDescription className="flex items-center gap-1">
+                          <Calendar size={14} />
+                          {new Date(post.date).toLocaleDateString('zh-CN')}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p>{post.excerpt}</p>
+                      </CardContent>
+                      <CardFooter>
+                        <p className="text-sm text-blue-500 flex items-center gap-1 group">
+                          阅读更多 
+                          <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                        </p>
+                      </CardFooter>
+                    </Card>
+                  </Link>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="text-center py-10">
+            <motion.div 
+              className="text-center py-10"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5 }}
+            >
               <p className="text-xl">没有找到匹配的文章</p>
               <p className="text-gray-500 dark:text-gray-400 mt-2">尝试使用不同的搜索词</p>
-            </div>
+            </motion.div>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </Layout>
   );
 }
