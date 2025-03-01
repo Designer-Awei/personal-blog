@@ -114,3 +114,13 @@ personal-blog/
 - Tailwind CSS - 样式库
 - ShadcnUI - UI组件库
 - SiliconFlow API - AI聊天功能 
+
+## 隐私密码设置
+
+本项目中的邮箱和电话信息默认是可见的，但用户可以选择隐藏这些信息。当用户尝试将隐藏的信息重新设为可见时，需要输入密码进行验证。
+
+- 默认密码：`123456`
+- 密码存储位置：项目根目录下的 `privacy-password.json` 文件
+- 密码格式：`{ "password": "您的密码" }`
+
+您可以直接编辑 `privacy-password.json` 文件来修改密码。在Vercel环境中，密码始终为默认值 `123456`。 

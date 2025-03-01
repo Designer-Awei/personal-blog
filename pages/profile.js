@@ -9,6 +9,7 @@ import { Heart, Star, ArrowLeft, Calendar, RefreshCw, Eye, EyeOff } from 'lucide
 import { motion } from 'framer-motion';
 import ProfileEditor from '../components/ProfileEditor';
 import { toast } from '../components/ui/use-toast';
+import PasswordDialog from '../components/PasswordDialog';
 
 export default function Profile({ userConfig: initialUserConfig }) {
   const [userConfig, setUserConfig] = useState(initialUserConfig);
@@ -21,6 +22,8 @@ export default function Profile({ userConfig: initialUserConfig }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPhoneVisible, setIsPhoneVisible] = useState(true);
   const [isEmailVisible, setIsEmailVisible] = useState(true);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [pendingVisibilityAction, setPendingVisibilityAction] = useState(null);
   const router = useRouter();
 
   // 初始化时从localStorage读取隐藏状态
@@ -40,16 +43,53 @@ export default function Profile({ userConfig: initialUserConfig }) {
   
   // 更新邮箱可见性状态并保存到localStorage
   const toggleEmailVisibility = () => {
-    const newState = !isEmailVisible;
-    setIsEmailVisible(newState);
-    localStorage.setItem('isEmailVisible', newState.toString());
+    // 如果当前是可见状态，直接设置为不可见
+    if (isEmailVisible) {
+      const newState = false;
+      setIsEmailVisible(newState);
+      localStorage.setItem('isEmailVisible', newState.toString());
+    } else {
+      // 如果当前是不可见状态，需要验证密码
+      setPendingVisibilityAction('email');
+      setShowPasswordDialog(true);
+    }
   };
   
   // 更新电话可见性状态并保存到localStorage
   const togglePhoneVisibility = () => {
-    const newState = !isPhoneVisible;
-    setIsPhoneVisible(newState);
-    localStorage.setItem('isPhoneVisible', newState.toString());
+    // 如果当前是可见状态，直接设置为不可见
+    if (isPhoneVisible) {
+      const newState = false;
+      setIsPhoneVisible(newState);
+      localStorage.setItem('isPhoneVisible', newState.toString());
+    } else {
+      // 如果当前是不可见状态，需要验证密码
+      setPendingVisibilityAction('phone');
+      setShowPasswordDialog(true);
+    }
+  };
+
+  // 密码验证成功后的回调
+  const handlePasswordSuccess = () => {
+    setShowPasswordDialog(false);
+    
+    if (pendingVisibilityAction === 'email') {
+      const newState = true;
+      setIsEmailVisible(newState);
+      localStorage.setItem('isEmailVisible', newState.toString());
+    } else if (pendingVisibilityAction === 'phone') {
+      const newState = true;
+      setIsPhoneVisible(newState);
+      localStorage.setItem('isPhoneVisible', newState.toString());
+    }
+    
+    setPendingVisibilityAction(null);
+  };
+
+  // 取消密码验证的回调
+  const handlePasswordCancel = () => {
+    setShowPasswordDialog(false);
+    setPendingVisibilityAction(null);
   };
 
   // 获取互动数据和文章
@@ -536,6 +576,14 @@ export default function Profile({ userConfig: initialUserConfig }) {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* 密码验证对话框 */}
+      <PasswordDialog 
+        open={showPasswordDialog} 
+        onOpenChange={setShowPasswordDialog}
+        onSuccess={handlePasswordSuccess}
+        onCancel={handlePasswordCancel}
+      />
     </Layout>
   );
 }

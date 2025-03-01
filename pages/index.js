@@ -14,6 +14,8 @@ import Image from 'next/image';
 import ImageUploader from '../components/ImageUploader';
 import { getUserConfig } from '../lib/userConfig';
 import { useRouter } from 'next/router';
+import PasswordDialog from '../components/PasswordDialog';
+import { isVercelEnvironment } from '../lib/utils';
 
 export default function Home({ posts, userConfig: initialUserConfig, categories }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,6 +33,8 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
   const [isPhoneVisible, setIsPhoneVisible] = useState(true);
   const [isEmailVisible, setIsEmailVisible] = useState(true);
   const [isVercelEnv, setIsVercelEnv] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [pendingVisibilityAction, setPendingVisibilityAction] = useState(null);
 
   // 初始化时从localStorage加载最近搜索记录和隐藏状态，并检测Vercel环境
   useEffect(() => {
@@ -52,21 +56,58 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
     }
 
     // 检测是否在Vercel环境中
-    setIsVercelEnv(window.location.hostname.includes('vercel.app'));
+    setIsVercelEnv(isVercelEnvironment());
   }, []);
 
   // 更新邮箱可见性状态并保存到localStorage
   const toggleEmailVisibility = () => {
-    const newState = !isEmailVisible;
-    setIsEmailVisible(newState);
-    localStorage.setItem('isEmailVisible', newState.toString());
+    // 如果当前是可见状态，直接设置为不可见
+    if (isEmailVisible) {
+      const newState = false;
+      setIsEmailVisible(newState);
+      localStorage.setItem('isEmailVisible', newState.toString());
+    } else {
+      // 如果当前是不可见状态，需要验证密码
+      setPendingVisibilityAction('email');
+      setShowPasswordDialog(true);
+    }
   };
   
   // 更新电话可见性状态并保存到localStorage
   const togglePhoneVisibility = () => {
-    const newState = !isPhoneVisible;
-    setIsPhoneVisible(newState);
-    localStorage.setItem('isPhoneVisible', newState.toString());
+    // 如果当前是可见状态，直接设置为不可见
+    if (isPhoneVisible) {
+      const newState = false;
+      setIsPhoneVisible(newState);
+      localStorage.setItem('isPhoneVisible', newState.toString());
+    } else {
+      // 如果当前是不可见状态，需要验证密码
+      setPendingVisibilityAction('phone');
+      setShowPasswordDialog(true);
+    }
+  };
+
+  // 密码验证成功后的回调
+  const handlePasswordSuccess = () => {
+    setShowPasswordDialog(false);
+    
+    if (pendingVisibilityAction === 'email') {
+      const newState = true;
+      setIsEmailVisible(newState);
+      localStorage.setItem('isEmailVisible', newState.toString());
+    } else if (pendingVisibilityAction === 'phone') {
+      const newState = true;
+      setIsPhoneVisible(newState);
+      localStorage.setItem('isPhoneVisible', newState.toString());
+    }
+    
+    setPendingVisibilityAction(null);
+  };
+
+  // 取消密码验证的回调
+  const handlePasswordCancel = () => {
+    setShowPasswordDialog(false);
+    setPendingVisibilityAction(null);
   };
 
   // 获取点赞和收藏状态
@@ -394,7 +435,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                 {/* 个人信息卡片 */}
                 <Card className="animate-fade-in">
                   <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex justify-between items-center">
                       <CardTitle>个人详情</CardTitle>
                     </div>
                   </CardHeader>
@@ -690,7 +731,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
         whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" }}
         whileTap={{ scale: 0.98 }}
         onClick={handleCreateNewArticle}
-        className="floating-button bg-primary hover:bg-primary/90 text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto"
+        className={`floating-button ${isVercelEnv ? 'bg-gray-500 hover:bg-gray-600' : 'bg-primary hover:bg-primary/90'} text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto`}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
@@ -713,6 +754,14 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
         <MessageSquare size={24} />
         <span className="hidden md:inline whitespace-nowrap">AI聊天室</span>
       </motion.button>
+
+      {/* 密码验证对话框 */}
+      <PasswordDialog 
+        open={showPasswordDialog} 
+        onOpenChange={setShowPasswordDialog}
+        onSuccess={handlePasswordSuccess}
+        onCancel={handlePasswordCancel}
+      />
     </Layout>
   );
 }
