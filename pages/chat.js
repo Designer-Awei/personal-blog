@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
-import { Send, ArrowLeft, Bot, User, Trash } from 'lucide-react';
+import { Send, ArrowLeft, Bot, User, Trash, StopCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
@@ -21,12 +21,38 @@ export default function ChatPage() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const eventSourceRef = useRef(null);
 
   // 自动滚动到最新消息
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // 组件卸载时清理资源
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  /**
+   * 停止流式输出
+   */
+  const stopStreaming = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsStreaming(false);
+  };
 
   /**
    * 处理消息发送
@@ -36,21 +62,34 @@ export default function ChatPage() {
     e.preventDefault();
     if (!input.trim()) return;
 
+    // 如果正在流式输出，先停止
+    if (isStreaming) {
+      stopStreaming();
+    }
+
     // 添加用户消息
     const userMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setIsStreaming(true);
+
+    // 创建一个新的空AI消息
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      // 准备发送给API的历史消息（不包括欢迎消息）
-      const messageHistory = messages.slice(1).map(msg => ({
+      // 准备发送给API的历史消息（不包括欢迎消息和最新的空消息）
+      const messageHistory = messages.slice(1, -1).map(msg => ({
         role: msg.role,
         content: msg.content
       }));
       
-      // 调用API发送消息到SiliconFlow
-      const response = await fetch('/api/chat', {
+      // 创建AbortController用于取消请求
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+      
+      // 发送请求到API
+      const fetchOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,31 +98,124 @@ export default function ChatPage() {
           message: input,
           history: messageHistory
         }),
-      });
-
+        signal
+      };
+      
+      const response = await fetch('/api/chat', fetchOptions);
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || '发送消息失败');
       }
-
-      const data = await response.json();
       
-      // 添加AI回复
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      
+      // 读取流数据
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        // 解码数据
+        const chunk = decoder.decode(value, { stream: false });
+        buffer += chunk;
+        
+        // 处理完整的SSE消息
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() || ''; // 保留最后一个可能不完整的消息
+        
+        for (const part of parts) {
+          if (part.trim() && part.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(part.slice(6).trim()); // 移除 'data: ' 前缀
+              
+              if (data.error) {
+                throw new Error(data.error);
+              }
+              
+              if (data.fullText) {
+                // 使用服务器发送的完整文本更新消息
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  lastMessage.content = data.fullText;
+                  return newMessages;
+                });
+              } else if (data.content && !data.fullText) {
+                // 兼容旧版API，如果没有fullText则使用content
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  const lastMessage = newMessages[newMessages.length - 1];
+                  lastMessage.content = (lastMessage.content || '') + data.content;
+                  return newMessages;
+                });
+              }
+              
+              if (data.done) {
+                // 流结束
+                setIsStreaming(false);
+                break;
+              }
+            } catch (e) {
+              console.error('解析流数据出错:', e, part);
+            }
+          }
+        }
+      }
+      
+      // 处理缓冲区中剩余的数据
+      if (buffer.trim() && buffer.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(buffer.slice(6).trim());
+          
+          if (data.fullText) {
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              lastMessage.content = data.fullText;
+              return newMessages;
+            });
+          } else if (data.content && !data.fullText) {
+            setMessages(prev => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              lastMessage.content = (lastMessage.content || '') + data.content;
+              return newMessages;
+            });
+          }
+          
+          if (data.done) {
+            setIsStreaming(false);
+          }
+        } catch (e) {
+          console.error('解析剩余流数据出错:', e, buffer);
+        }
+      }
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: '发送消息失败',
-        description: error.message || '请稍后再试',
-        variant: 'destructive',
-      });
-      // 添加错误消息
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '抱歉，我遇到了一些问题，无法回答您的问题。请稍后再试。' 
-      }]);
+      // 检查是否是用户主动取消
+      if (error.name === 'AbortError') {
+        console.log('用户取消了请求');
+      } else {
+        console.error('Error sending message:', error);
+        toast({
+          title: '发送消息失败',
+          description: error.message || '请稍后再试',
+          variant: 'destructive',
+        });
+        
+        // 更新最后一条消息为错误消息
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          lastMessage.content = '抱歉，我遇到了一些问题，无法回答您的问题。请稍后再试。';
+          return newMessages;
+        });
+      }
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -91,6 +223,11 @@ export default function ChatPage() {
    * 清空聊天记录
    */
   const clearChat = () => {
+    // 如果正在流式输出，先停止
+    if (isStreaming) {
+      stopStreaming();
+    }
+    
     setMessages([
       { role: 'assistant', content: '聊天记录已清空。有什么我可以帮助你的吗？' }
     ]);
@@ -167,7 +304,7 @@ export default function ChatPage() {
                   </div>
                 </motion.div>
               ))}
-              {isLoading && (
+              {isLoading && !isStreaming && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 max-w-[80%]">
                     <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -193,13 +330,24 @@ export default function ChatPage() {
                 placeholder="输入你的问题..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading}
+                disabled={isLoading && !isStreaming}
                 className="flex-1"
               />
-              <Button type="submit" disabled={isLoading || !input.trim()}>
-                <Send size={16} className="mr-2" />
-                发送
-              </Button>
+              {isStreaming ? (
+                <Button 
+                  type="button" 
+                  onClick={stopStreaming}
+                  variant="destructive"
+                >
+                  <StopCircle size={16} className="mr-2" />
+                  停止
+                </Button>
+              ) : (
+                <Button type="submit" disabled={isLoading || !input.trim()}>
+                  <Send size={16} className="mr-2" />
+                  发送
+                </Button>
+              )}
             </form>
           </CardFooter>
         </Card>

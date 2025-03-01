@@ -1,6 +1,6 @@
 /**
  * 处理聊天请求的API路由
- * 将用户消息发送到SiliconFlow API并返回响应
+ * 将用户消息发送到SiliconFlow API并返回流式响应
  * 
  * @param {object} req - HTTP请求对象
  * @param {object} res - HTTP响应对象
@@ -39,7 +39,14 @@ export default async function handler(req, res) {
       { role: 'user', content: message }
     ];
     
-    // 调用SiliconFlow API
+    // 设置响应头，启用流式输出
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    });
+
+    // 调用SiliconFlow API，启用流式输出
     const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -49,31 +56,104 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'Qwen/Qwen2.5-7B-Instruct',
         messages: messages,
-        temperature: 0.7
+        temperature: 0.7,
+        top_p: 0.7,
+        frequency_penalty: 0.1,
+        stream: true // 启用流式输出
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json();
       console.error('SiliconFlow API错误:', errorData);
-      return res.status(response.status).json({ 
-        error: '调用AI服务失败', 
-        details: errorData 
-      });
+      res.write(`data: ${JSON.stringify({ error: '调用AI服务失败', details: errorData })}\n\n`);
+      res.end();
+      return;
     }
 
-    const data = await response.json();
+    // 处理流式响应
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullText = ''; // 用于跟踪完整的文本
     
-    // 返回AI的回复
-    return res.status(200).json({ 
-      reply: data.choices[0].message.content 
-    });
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        
+        // 解码二进制数据
+        const chunk = decoder.decode(value, { stream: false });
+        buffer += chunk;
+        
+        // 处理完整的SSE消息
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
+        
+        for (const message of messages) {
+          if (message.trim() && message.startsWith('data: ') && message !== 'data: [DONE]') {
+            try {
+              // 提取JSON数据
+              const jsonData = message.slice(6).trim(); // 移除 'data: ' 前缀并去除空格
+              const data = JSON.parse(jsonData);
+              
+              // 提取内容增量
+              if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                const content = data.choices[0].delta.content;
+                
+                // 将增量添加到完整文本
+                fullText += content;
+                
+                // 发送增量到客户端
+                res.write(`data: ${JSON.stringify({ content, fullText })}\n\n`);
+              }
+            } catch (e) {
+              console.error('解析流数据出错:', e, message);
+            }
+          } else if (message.trim() === 'data: [DONE]') {
+            // 流结束
+            res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+          }
+        }
+      }
+      
+      // 处理缓冲区中剩余的数据
+      if (buffer.trim() && buffer.startsWith('data: ') && buffer !== 'data: [DONE]') {
+        try {
+          const jsonData = buffer.slice(6).trim();
+          const data = JSON.parse(jsonData);
+          
+          if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+            const content = data.choices[0].delta.content;
+            
+            // 将增量添加到完整文本
+            fullText += content;
+            
+            // 发送增量到客户端
+            res.write(`data: ${JSON.stringify({ content, fullText })}\n\n`);
+          }
+        } catch (e) {
+          console.error('解析剩余流数据出错:', e, buffer);
+        }
+      } else if (buffer.trim() === 'data: [DONE]') {
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      }
+      
+    } catch (error) {
+      console.error('读取流数据时出错:', error);
+      res.write(`data: ${JSON.stringify({ error: '读取响应流失败', message: error.message })}\n\n`);
+    } finally {
+      res.end();
+    }
     
   } catch (error) {
     console.error('处理聊天请求时出错:', error);
-    return res.status(500).json({ 
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
       error: '服务器内部错误', 
       message: error.message 
-    });
+    }));
   }
 } 
