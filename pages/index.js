@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
-import { Search, Calendar, Heart, Star, Trash, X, Clock, Bookmark, Mail, MapPin, Code, ArrowRight, Plus, Settings, History, Phone, Eye, EyeOff } from 'lucide-react';
+import { Search, Calendar, Heart, Star, Trash, X, Clock, Bookmark, Mail, MapPin, Code, ArrowRight, Plus, Settings, History, Phone, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '../components/ui/use-toast';
 import Image from 'next/image';
@@ -351,68 +351,84 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
               <CardTitle>关于我</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center mb-4">
-                <div className="relative">
-                  <img 
-                    src={profileImage || '/placeholder-avatar.png'} 
-                    alt={userConfig.name}
-                    className="w-32 h-32 rounded-full object-cover"
-                  />
-                </div>
-                <motion.h2 
-                  className="text-xl font-bold mt-2"
-                  initial={{ scale: 0.9 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
-                >
-                  {userConfig.name}
-                </motion.h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{userConfig.occupation || '设计师'}</p>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <Mail size={16} className="text-primary mt-1" />
-                  <div className="flex items-center">
-                    <p><strong>邮箱:</strong> {isEmailVisible ? userConfig.email : '****@**.com'}</p>
-                    <button 
-                      onClick={() => setIsEmailVisible(!isEmailVisible)} 
-                      className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                    >
-                      {isEmailVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Phone size={16} className="text-primary mt-1" />
-                  <div className="flex items-center">
-                    <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}</p>
-                    <button 
-                      onClick={() => setIsPhoneVisible(!isPhoneVisible)} 
-                      className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                    >
-                      {isPhoneVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <MapPin size={16} className="text-primary mt-1" />
-                  <p><strong>位置:</strong> {userConfig.location}</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Code size={16} className="text-primary mt-1" />
-                  <p><strong>技能:</strong> {userConfig.skills}</p>
-                </div>
-                <div className="flex items-center justify-between mt-4 border-t pt-3">
-                  <div className="flex items-center gap-1">
-                    <Heart size={16} className="text-red-500" />
-                    <span>点赞: {likedPosts.length}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Bookmark size={16} className="text-yellow-500" />
-                    <span>收藏: {favoritePosts.length}</span>
-                  </div>
-                </div>
-                <p className="mt-4">{userConfig.bio}</p>
+              <div className="grid grid-cols-1 gap-4">
+                {/* 个人信息卡片 */}
+                <Card className="animate-fade-in">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>个人详情</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col items-center mb-4">
+                      <div className="relative">
+                        <img 
+                          src={profileImage || '/placeholder-avatar.png'} 
+                          alt={userConfig.name}
+                          className="w-32 h-32 rounded-full object-cover"
+                        />
+                      </div>
+                      <motion.h2 
+                        className="text-xl font-bold mt-2"
+                        initial={{ scale: 0.9 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.3, delay: 0.2 }}
+                      >
+                        {userConfig.name}
+                      </motion.h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{userConfig.occupation || '设计师'}</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2">
+                        <Mail size={16} className="text-primary mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1">
+                            <p><strong>邮箱:</strong> {isEmailVisible ? userConfig.email : '****@**.com'}</p>
+                            <button 
+                              onClick={() => setIsEmailVisible(!isEmailVisible)} 
+                              className="ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                            >
+                              {isEmailVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Phone size={16} className="text-primary mt-1" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-1">
+                            <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}</p>
+                            <button 
+                              onClick={() => setIsPhoneVisible(!isPhoneVisible)} 
+                              className="ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                            >
+                              {isPhoneVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <MapPin size={16} className="text-primary mt-1" />
+                        <p><strong>位置:</strong> {userConfig.location}</p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Code size={16} className="text-primary mt-1" />
+                        <p><strong>技能:</strong> {userConfig.skills}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 border-t pt-3">
+                      <div className="flex items-center gap-1">
+                        <Heart size={16} className="text-red-500" />
+                        <span>点赞: {likedPosts.length}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Bookmark size={16} className="text-yellow-500" />
+                        <span>收藏: {favoritePosts.length}</span>
+                      </div>
+                    </div>
+                    <p className="mt-4">{userConfig.bio}</p>
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between items-center">
@@ -632,15 +648,31 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
       {/* 悬浮的新增文章按钮 */}
       <motion.button
-        whileHover={{ scale: 1.1, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" }}
-        whileTap={{ scale: 0.95 }}
+        whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" }}
+        whileTap={{ scale: 0.98 }}
         onClick={handleCreateNewArticle}
-        className="floating-button bg-blue-500 hover:bg-blue-600 text-white"
+        className="floating-button bg-primary hover:bg-primary/90 text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
       >
-        <Plus size={32} />
+        <Plus size={24} />
+        <span className="hidden md:inline whitespace-nowrap">新增文章</span>
+      </motion.button>
+
+      {/* 悬浮的AI聊天室按钮 */}
+      <motion.button
+        whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => router.push('/chat')}
+        className="floating-button bg-primary hover:bg-primary/90 text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto"
+        style={{ bottom: "6rem", right: "2rem" }}
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
+      >
+        <MessageSquare size={24} />
+        <span className="hidden md:inline whitespace-nowrap">AI聊天室</span>
       </motion.button>
     </Layout>
   );

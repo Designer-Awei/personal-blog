@@ -2,8 +2,9 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/posts/[slug]": "pages/posts/[slug].js",
   "/api/interactions/like": "pages/api/interactions/like.js",
-  "/api/interactions/favorite": "pages/api/interactions/favorite.js"
+  "/": "pages/index.js",
+  "/api/interactions/favorite": "pages/api/interactions/favorite.js",
+  "/chat": "pages/chat.js",
+  "/api/chat": "pages/api/chat.js"
 }
