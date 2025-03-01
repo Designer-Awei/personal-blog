@@ -6,3 +6,14 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Next.js构建输出
+.next
+out
+
+# 其他
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
