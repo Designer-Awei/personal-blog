@@ -9,13 +9,13 @@ import html from 'remark-html';
  * @returns {boolean} 是否为Vercel生产环境
  */
 function isVercelProduction() {
-  return process.env.VERCEL_ENV === 'production';
+  return process.env.VERCEL_ENV === 'production' || process.env.VERCEL === '1';
 }
 
 /**
  * 获取文章内容
- * @param {string} slug - 文章标识符
- * @returns {object} 文章内容对象
+ * @param {object} req - 请求对象
+ * @param {object} res - 响应对象
  */
 export default async function handler(req, res) {
   const { slug } = req.query;
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   
   try {
     // 在Vercel环境中，尝试从客户端传递的数据中获取文章内容
-    if (isVercelProduction() && req.body && req.body.articleContent) {
+    if (isVercelProduction() && req.method === 'POST' && req.body && req.body.articleContent) {
       const { articleContent } = req.body;
       
       // 解析文章内容
