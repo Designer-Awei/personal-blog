@@ -29,11 +29,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("收到保存文章请求:", req.body);
     const { slug, title, content, excerpt, date, category, coverImage } = req.body;
     
     if (!slug || !title || !content) {
-      console.log("缺少必要信息:", { slug, title, content: !!content });
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
     
@@ -41,17 +39,13 @@ export default async function handler(req, res) {
     const contentDirectory = path.join(process.cwd(), 'content');
     const filePath = path.join(contentDirectory, `${slug}.md`);
     
-    console.log(`尝试保存文章到: ${filePath}`);
-    
     // 确保content目录存在
     if (!fs.existsSync(contentDirectory)) {
-      console.log(`创建content目录: ${contentDirectory}`);
       fs.mkdirSync(contentDirectory, { recursive: true });
     }
     
     // 检查文件是否存在
     if (!fs.existsSync(filePath)) {
-      console.log(`文件不存在: ${filePath}`);
       return res.status(404).json({ message: '文章不存在' });
     }
     
@@ -68,22 +62,13 @@ export default async function handler(req, res) {
       frontmatter.coverImage = coverImage;
     }
     
-    // 保留原始Markdown内容，不进行任何处理
     // 使用gray-matter格式化内容，保留原始Markdown格式
     const fileContent = matter.stringify(content, frontmatter);
     
     // 写入文件
     try {
       fs.writeFileSync(filePath, fileContent, 'utf8');
-      console.log(`文章保存成功: ${slug}`);
-      
-      // 读取保存后的文件内容，确认格式正确
-      const savedContent = fs.readFileSync(filePath, 'utf8');
-      const parsedContent = matter(savedContent);
-      console.log(`保存后的文章内容长度: ${parsedContent.content.length}`);
-      
     } catch (writeError) {
-      console.error(`写入文件失败: ${writeError.message}`);
       return res.status(500).json({ 
         success: false,
         message: '写入文件失败', 
@@ -97,7 +82,6 @@ export default async function handler(req, res) {
       slug
     });
   } catch (error) {
-    console.error('保存文章时出错:', error);
     return res.status(500).json({ 
       success: false,
       message: '服务器错误', 

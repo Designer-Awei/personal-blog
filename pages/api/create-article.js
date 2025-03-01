@@ -29,11 +29,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log("收到创建文章请求:", req.body);
     const { title, content, excerpt, date, slug, category, coverImage } = req.body;
     
     if (!title || !content || !slug) {
-      console.log("缺少必要信息:", { title, content, slug });
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
 
@@ -49,7 +47,6 @@ export default async function handler(req, res) {
     try {
       existingFiles = fs.readdirSync(contentDir);
     } catch (error) {
-      console.error('读取文章目录失败:', error);
       // 继续执行，不阻止创建文章
     }
     
@@ -73,7 +70,6 @@ export default async function handler(req, res) {
     }
 
     // 将普通文本内容转换为适合保存的格式
-    // 对于普通文本，我们将其包装在一个段落中
     const formattedContent = content.split('\n\n').map(paragraph => paragraph.trim()).filter(Boolean).join('\n\n');
     
     // 使用gray-matter格式化文章内容
@@ -84,7 +80,6 @@ export default async function handler(req, res) {
     
     try {
       fs.writeFileSync(filePath, articleContent, 'utf8');
-      console.log("文章创建成功:", uniqueSlug);
       
       return res.status(200).json({ 
         success: true, 
@@ -92,18 +87,15 @@ export default async function handler(req, res) {
         slug: uniqueSlug
       });
     } catch (writeError) {
-      console.error('写入文章文件失败:', writeError);
       return res.status(500).json({ 
         message: '写入文章文件失败', 
         error: writeError.message
       });
     }
   } catch (error) {
-    console.error('创建文章时出错:', error);
     return res.status(500).json({ 
       message: '服务器错误', 
-      error: error.message,
-      stack: error.stack
+      error: error.message
     });
   }
 } 

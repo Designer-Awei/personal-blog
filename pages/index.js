@@ -772,11 +772,9 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 export async function getServerSideProps() {
   // 文章目录路径
   const contentDirectory = path.join(process.cwd(), 'content');
-  console.log(`首页: 文章目录路径: ${contentDirectory}`);
   
   // 确保content目录存在
   if (!fs.existsSync(contentDirectory)) {
-    console.log(`首页: 创建content目录`);
     fs.mkdirSync(contentDirectory, { recursive: true });
   }
   
@@ -784,16 +782,12 @@ export async function getServerSideProps() {
   let fileNames = [];
   try {
     fileNames = fs.readdirSync(contentDirectory);
-    console.log(`首页: 找到 ${fileNames.length} 个文件`);
   } catch (error) {
-    console.error(`首页: 读取目录失败: ${error.message}`);
     fileNames = [];
   }
   
   // 如果没有文章，创建示例文章
   if (fileNames.filter(fileName => fileName.endsWith('.md')).length === 0) {
-    console.log(`首页: 没有找到文章，创建示例文章`);
-    
     // 示例文章数据
     const samplePosts = [
       {
@@ -834,16 +828,14 @@ export async function getServerSideProps() {
         
         // 写入文件
         fs.writeFileSync(path.join(contentDirectory, `${slug}.md`), content);
-        console.log(`首页: 创建文章: ${slug}.md`);
       } catch (error) {
-        console.error(`首页: 创建文章失败:`, error);
+        // 忽略错误
       }
     });
   }
   
   // 获取所有文章文件
   const updatedFileNames = fs.readdirSync(contentDirectory);
-  console.log(`首页: 更新后找到 ${updatedFileNames.length} 个文件`);
   
   // 解析文章数据
   const posts = updatedFileNames
@@ -869,11 +861,6 @@ export async function getServerSideProps() {
         coverImage: data.coverImage || null
       };
     });
-  
-  console.log(`首页: 解析了 ${posts.length} 篇文章`);
-  
-  // 按日期排序（最新的在前）
-  posts.sort((a, b) => new Date(b.date) - new Date(a.date));
   
   // 提取所有分类
   const categories = [...new Set(posts.map(post => post.category))];

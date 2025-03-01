@@ -65,12 +65,6 @@ export default function Post({ post }) {
     const handleSaveArticle = async (updatedArticle) => {
         setIsSaving(true);
         try {
-            console.log('准备保存文章:', { 
-                slug, 
-                title: updatedArticle.title,
-                contentLength: updatedArticle.content?.length || 0
-            });
-            
             const response = await fetch('/api/save-article', {
                 method: 'POST',
                 headers: {
@@ -87,9 +81,7 @@ export default function Post({ post }) {
                 }),
             });
 
-            console.log('保存文章响应状态:', response.status);
             const data = await response.json();
-            console.log('保存文章响应数据:', data);
             
             if (data.success) {
                 toast({
@@ -107,7 +99,6 @@ export default function Post({ post }) {
                 });
             }
         } catch (error) {
-            console.error('保存文章时出错:', error);
             toast({
                 title: "保存失败",
                 description: "保存文章失败，请重试",
