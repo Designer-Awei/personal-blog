@@ -16,9 +16,12 @@ import { getUserConfig } from '../lib/userConfig';
 import { useRouter } from 'next/router';
 import PasswordDialog from '../components/PasswordDialog';
 import { isVercelEnvironment } from '../lib/utils';
+import fs from 'fs';
+import path from 'path';
+import matter from 'gray-matter';
 
 export default function Home({ posts, userConfig: initialUserConfig, categories }) {
-  const [searchTerm, setSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
   const [userConfig, setUserConfig] = useState(initialUserConfig);
   const [profileImage, setProfileImage] = useState(initialUserConfig.profileImage);
   const [filteredPosts, setFilteredPosts] = useState(posts);
@@ -30,8 +33,8 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
   const [activeCategory, setActiveCategory] = useState('all');
   const router = useRouter();
   const searchRef = useRef(null);
-  const [isPhoneVisible, setIsPhoneVisible] = useState(true);
-  const [isEmailVisible, setIsEmailVisible] = useState(true);
+  const [isPhoneVisible, setIsPhoneVisible] = useState(false);
+  const [isEmailVisible, setIsEmailVisible] = useState(false);
   const [isVercelEnv, setIsVercelEnv] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [pendingVisibilityAction, setPendingVisibilityAction] = useState(null);
@@ -411,7 +414,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
     }
   };
 
-  return (
+    return (
     <Layout>
       <motion.div 
         initial={{ opacity: 0 }}
@@ -612,10 +615,10 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                           >
                             <Calendar size={14} className="mr-2 text-gray-400" />
                             <span>{term}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
                   ) : null}
                 </motion.div>
               )}
@@ -767,61 +770,32 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 }
 
 export async function getServerSideProps() {
-  // 导入服务器端模块
-  const fs = require('fs');
-  const path = require('path');
-  const matter = require('gray-matter');
-
-  // 获取文章目录
-  const postsDirectory = path.join(process.cwd(), 'posts');
+  // 文章目录路径
+  const contentDirectory = path.join(process.cwd(), 'content');
+  console.log(`首页: 文章目录路径: ${contentDirectory}`);
   
-  // 确保文章目录存在
-  if (!fs.existsSync(postsDirectory)) {
-    fs.mkdirSync(postsDirectory, { recursive: true });
+  // 确保content目录存在
+  if (!fs.existsSync(contentDirectory)) {
+    console.log(`首页: 创建content目录`);
+    fs.mkdirSync(contentDirectory, { recursive: true });
   }
   
-  // 检查是否需要创建示例文章
-  const fileNames = fs.readdirSync(postsDirectory);
-  if (fileNames.length === 0) {
-    console.log('创建示例文章...');
+  // 检查是否有文章文件
+  let fileNames = [];
+  try {
+    fileNames = fs.readdirSync(contentDirectory);
+    console.log(`首页: 找到 ${fileNames.length} 个文件`);
+  } catch (error) {
+    console.error(`首页: 读取目录失败: ${error.message}`);
+    fileNames = [];
+  }
+  
+  // 如果没有文章，创建示例文章
+  if (fileNames.filter(fileName => fileName.endsWith('.md')).length === 0) {
+    console.log(`首页: 没有找到文章，创建示例文章`);
     
-    // 如果目录为空，创建一些示例文章
+    // 示例文章数据
     const samplePosts = [
-      {
-        title: '网页开发入门指南',
-        date: '2023-06-15',
-        category: '技术',
-        excerpt: '本文将介绍网页开发的基础知识，包括HTML、CSS和JavaScript的基本概念和应用。',
-        content: '# 网页开发入门指南\n\n## HTML基础\nHTML是构建网页的基础，它定义了网页的结构和内容。\n\n## CSS样式\nCSS用于设置网页的样式，包括颜色、布局和字体等。\n\n## JavaScript交互\nJavaScript为网页添加交互功能，使网页变得更加动态和有趣。'
-      },
-      {
-        title: '健康生活方式的重要性',
-        date: '2023-07-20',
-        category: '健康',
-        excerpt: '保持健康的生活方式对于身心健康至关重要，本文将分享一些简单实用的健康生活技巧。',
-        content: '# 健康生活方式的重要性\n\n## 均衡饮食\n均衡的饮食结构是保持健康的基础，应包含足够的蛋白质、碳水化合物、脂肪、维生素和矿物质。\n\n## 规律运动\n定期进行适量的体育锻炼可以增强体质，预防疾病。\n\n## 充足睡眠\n良好的睡眠质量对身体恢复和心理健康非常重要。'
-      },
-      {
-        title: '提高工作效率的10个技巧',
-        date: '2023-08-05',
-        category: '职场',
-        excerpt: '在当今快节奏的工作环境中，提高效率变得越来越重要。本文将分享10个实用的工作效率提升技巧。',
-        content: '# 提高工作效率的10个技巧\n\n## 1. 制定明确的目标\n明确的目标可以帮助你集中注意力，避免分心。\n\n## 2. 使用番茄工作法\n番茄工作法是一种时间管理方法，可以帮助你保持专注并避免倦怠。\n\n## 3. 减少多任务处理\n研究表明，多任务处理实际上会降低效率，应尽量一次专注于一项任务。'
-      },
-      {
-        title: '旅行的意义与价值',
-        date: '2023-09-10',
-        category: '生活',
-        excerpt: '旅行不仅是一种休闲活动，更是一种拓展视野、丰富人生体验的方式。本文将探讨旅行的深层意义。',
-        content: '# 旅行的意义与价值\n\n## 开阔视野\n旅行可以让我们接触不同的文化和生活方式，拓宽视野。\n\n## 自我发现\n在陌生的环境中，我们往往能够更好地认识自己，发现自己的潜能和局限。\n\n## 建立联系\n旅行中结识的朋友和经历的故事，往往成为人生中珍贵的记忆和财富。'
-      },
-      {
-        title: '正念冥想的科学基础',
-        date: '2023-10-15',
-        category: '心理',
-        excerpt: '正念冥想已被科学研究证明对减轻压力、改善注意力和提高幸福感有显著效果。本文将介绍其科学原理。',
-        content: '# 正念冥想的科学基础\n\n## 神经科学研究\n神经科学研究表明，长期的冥想练习可以改变大脑结构，增强前额叶皮质的功能。\n\n## 心理学机制\n从心理学角度看，正念冥想通过提高自我觉察能力，帮助人们更好地管理情绪和思维。\n\n## 实践方法\n正念冥想的基本方法包括专注呼吸、身体扫描和慈悲冥想等，这些方法简单易学，效果显著。'
-      },
       {
         title: '人工智能在日常生活中的应用',
         date: '2023-11-05',
@@ -859,39 +833,44 @@ export async function getServerSideProps() {
         const slug = `article-${index + 1}`;
         
         // 写入文件
-        fs.writeFileSync(path.join(postsDirectory, `${slug}.md`), content);
-        console.log(`创建文章: ${slug}.md`);
+        fs.writeFileSync(path.join(contentDirectory, `${slug}.md`), content);
+        console.log(`首页: 创建文章: ${slug}.md`);
       } catch (error) {
-        console.error(`创建文章失败:`, error);
+        console.error(`首页: 创建文章失败:`, error);
       }
     });
   }
   
   // 获取所有文章文件
-  const updatedFileNames = fs.readdirSync(postsDirectory);
+  const updatedFileNames = fs.readdirSync(contentDirectory);
+  console.log(`首页: 更新后找到 ${updatedFileNames.length} 个文件`);
   
   // 解析文章数据
-  const posts = updatedFileNames.map(fileName => {
-    // 从文件名获取slug
-    const slug = fileName.replace(/\.md$/, '');
-    
-    // 读取文章内容
-    const fullPath = path.join(postsDirectory, fileName);
-    const fileContents = fs.readFileSync(fullPath, 'utf8');
-    
-    // 使用gray-matter解析文章元数据
-    const { data } = matter(fileContents);
-    
-    // 返回文章数据
-    return {
-      slug,
-      title: data.title,
-      date: data.date,
-      category: data.category || '未分类',
-      excerpt: data.excerpt,
-      coverImage: data.coverImage || null
-    };
-  });
+  const posts = updatedFileNames
+    .filter(fileName => fileName.endsWith('.md'))
+    .map(fileName => {
+      // 从文件名获取slug
+      const slug = fileName.replace(/\.md$/, '');
+      
+      // 读取文章内容
+      const fullPath = path.join(contentDirectory, fileName);
+      const fileContents = fs.readFileSync(fullPath, 'utf8');
+      
+      // 使用gray-matter解析文章元数据
+      const { data } = matter(fileContents);
+      
+      // 返回文章数据
+      return {
+        slug,
+        title: data.title,
+        date: data.date,
+        category: data.category || '未分类',
+        excerpt: data.excerpt,
+        coverImage: data.coverImage || null
+      };
+    });
+  
+  console.log(`首页: 解析了 ${posts.length} 篇文章`);
   
   // 按日期排序（最新的在前）
   posts.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -934,9 +913,9 @@ export async function getServerSideProps() {
       fs.writeFileSync(userConfigPath, JSON.stringify(userConfig, null, 2));
     }
   } catch (error) {
-    console.error('获取用户配置时出错:', error);
+    console.error('首页: 获取用户配置时出错:', error);
   }
-  
+
   return {
     props: {
       posts,

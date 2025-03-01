@@ -17,9 +17,9 @@ export default async function handler(req, res) {
   try {
     console.log(`尝试删除文章: ${slug}`);
     
-    // 文章文件路径 - 修改为posts目录
-    const postsDir = path.join(process.cwd(), 'posts');
-    const filePath = path.join(postsDir, `${slug}.md`);
+    // 文章文件路径 - 使用content目录
+    const contentDir = path.join(process.cwd(), 'content');
+    const filePath = path.join(contentDir, `${slug}.md`);
     
     // 检查文件是否存在
     if (!fs.existsSync(filePath)) {

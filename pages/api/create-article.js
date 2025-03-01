@@ -37,17 +37,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: '缺少必要的文章信息' });
     }
 
-    // 确保posts目录存在
-    const postsDir = path.join(process.cwd(), 'posts');
+    // 确保content目录存在
+    const contentDir = path.join(process.cwd(), 'content');
     
-    if (!fs.existsSync(postsDir)) {
-      fs.mkdirSync(postsDir, { recursive: true });
+    if (!fs.existsSync(contentDir)) {
+      fs.mkdirSync(contentDir, { recursive: true });
     }
 
     // 检查slug是否已存在
     let existingFiles = [];
     try {
-      existingFiles = fs.readdirSync(postsDir);
+      existingFiles = fs.readdirSync(contentDir);
     } catch (error) {
       console.error('读取文章目录失败:', error);
       // 继续执行，不阻止创建文章
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     const articleContent = matter.stringify(formattedContent, frontmatter);
     
     // 保存文件
-    const filePath = path.join(postsDir, `${uniqueSlug}.md`);
+    const filePath = path.join(contentDir, `${uniqueSlug}.md`);
     
     try {
       fs.writeFileSync(filePath, articleContent, 'utf8');

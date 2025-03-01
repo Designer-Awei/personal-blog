@@ -20,8 +20,8 @@ export default function Profile({ userConfig: initialUserConfig }) {
   const [likeCount, setLikeCount] = useState(0);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isPhoneVisible, setIsPhoneVisible] = useState(true);
-  const [isEmailVisible, setIsEmailVisible] = useState(true);
+  const [isPhoneVisible, setIsPhoneVisible] = useState(false);
+  const [isEmailVisible, setIsEmailVisible] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [pendingVisibilityAction, setPendingVisibilityAction] = useState(null);
   const router = useRouter();
