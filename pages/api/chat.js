@@ -18,8 +18,13 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '消息不能为空' });
     }
 
-    // SiliconFlow API密钥
-    const apiKey = 'sk-pvucxrclkupjoavwpbbntvjywamtejjtyuantbuxmnkqorbx';
+    // 从环境变量获取SiliconFlow API密钥
+    const apiKey = process.env.SILICONFLOW_API_KEY;
+    
+    if (!apiKey) {
+      console.error('未配置SiliconFlow API密钥');
+      return res.status(500).json({ error: 'API密钥配置错误' });
+    }
     
     // 构建消息历史，包括当前消息
     const messages = [
