@@ -311,63 +311,60 @@ export default function Post({ frontmatter, slug, content }) {
     );
 }
 
-export async function getStaticPaths() {
-    const fs = require('fs');
-    const path = require('path');
-
-    // 修改为正确的文章目录
-    const postsDirectory = path.join(process.cwd(), 'posts');
+export async function getServerSideProps({ params }) {
+    const { slug } = params;
     
-    // 确保目录存在
-    if (!fs.existsSync(postsDirectory)) {
-        return {
-            paths: [],
-            fallback: 'blocking'
-        };
-    }
-
-    const files = fs.readdirSync(postsDirectory);
-
-    const paths = files.map(filename => ({
-        params: {
-            slug: filename.replace('.md', '')
+    try {
+        // 尝试从API获取文章数据
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+        const res = await fetch(`${apiUrl}/api/posts/${slug}`);
+        
+        // 如果API返回成功，使用API数据
+        if (res.ok) {
+            const post = await res.json();
+            return {
+                props: { post }
+            };
         }
-    }));
-
-    return {
-        paths,
-        fallback: 'blocking'
-    };
-}
-
-export async function getStaticProps({ params: { slug } }) {
-    const fs = require('fs');
-    const path = require('path');
-    const matter = require('gray-matter');
-
-    // 修改为正确的文章目录
-    const postsDirectory = path.join(process.cwd(), 'posts');
-    const fullPath = path.join(postsDirectory, `${slug}.md`);
-    
-    // 检查文件是否存在
-    if (!fs.existsSync(fullPath)) {
+        
+        // 如果API请求失败，尝试从localStorage获取（客户端渲染时）
+        if (typeof window !== 'undefined') {
+            try {
+                const articles = JSON.parse(localStorage.getItem('articles') || '[]');
+                const article = articles.find(a => a.slug === slug);
+                
+                if (article && article.content) {
+                    // 向API发送文章内容进行处理
+                    const processRes = await fetch(`${apiUrl}/api/posts/${slug}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ articleContent: article.content })
+                    });
+                    
+                    if (processRes.ok) {
+                        const post = await processRes.json();
+                        return {
+                            props: { post }
+                        };
+                    }
+                }
+            } catch (storageError) {
+                console.error('从本地存储读取文章失败:', storageError);
+            }
+        }
+        
+        // 如果所有尝试都失败，返回404
+        return {
+            notFound: true
+        };
+    } catch (error) {
+        console.error('获取文章数据时出错:', error);
         return {
             notFound: true
         };
     }
-
-    const markdownWithMeta = fs.readFileSync(fullPath, 'utf-8');
-    const { data: frontmatter, content } = matter(markdownWithMeta);
-
-    return {
-        props: {
-            frontmatter,
-            slug,
-            content
-        },
-        // 增加重新验证时间，以便内容更新时重新生成页面
-        revalidate: 60
-    };
 }
 
 export const runtime = 'nodejs';

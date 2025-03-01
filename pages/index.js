@@ -30,14 +30,44 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
   const searchRef = useRef(null);
   const [isPhoneVisible, setIsPhoneVisible] = useState(true);
   const [isEmailVisible, setIsEmailVisible] = useState(true);
+  const [isVercelEnv, setIsVercelEnv] = useState(false);
 
-  // 初始化时从localStorage加载最近搜索记录
+  // 初始化时从localStorage加载最近搜索记录和隐藏状态，并检测Vercel环境
   useEffect(() => {
     const savedSearches = localStorage.getItem('recentSearches');
     if (savedSearches) {
       setRecentSearches(JSON.parse(savedSearches));
     }
+    
+    // 从localStorage读取邮箱和电话隐藏状态
+    const savedEmailVisible = localStorage.getItem('isEmailVisible');
+    const savedPhoneVisible = localStorage.getItem('isPhoneVisible');
+    
+    if (savedEmailVisible !== null) {
+      setIsEmailVisible(savedEmailVisible === 'true');
+    }
+    
+    if (savedPhoneVisible !== null) {
+      setIsPhoneVisible(savedPhoneVisible === 'true');
+    }
+
+    // 检测是否在Vercel环境中
+    setIsVercelEnv(window.location.hostname.includes('vercel.app'));
   }, []);
+
+  // 更新邮箱可见性状态并保存到localStorage
+  const toggleEmailVisibility = () => {
+    const newState = !isEmailVisible;
+    setIsEmailVisible(newState);
+    localStorage.setItem('isEmailVisible', newState.toString());
+  };
+  
+  // 更新电话可见性状态并保存到localStorage
+  const togglePhoneVisibility = () => {
+    const newState = !isPhoneVisible;
+    setIsPhoneVisible(newState);
+    localStorage.setItem('isPhoneVisible', newState.toString());
+  };
 
   // 获取点赞和收藏状态
   useEffect(() => {
@@ -147,6 +177,15 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
   // 创建新文章
   const handleCreateNewArticle = () => {
+    // 如果在Vercel环境中，显示提示信息
+    if (isVercelEnv) {
+      toast({
+        title: "功能暂不可用",
+        description: "在Vercel环境中暂不支持新增文章功能，请在本地环境中使用此功能。",
+        variant: "destructive"
+      });
+      return;
+    }
     router.push('/new-article');
   };
 
@@ -385,7 +424,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                           <div className="flex items-center gap-1">
                             <p><strong>邮箱:</strong> {isEmailVisible ? userConfig.email : '****@**.com'}</p>
                             <button 
-                              onClick={() => setIsEmailVisible(!isEmailVisible)} 
+                              onClick={toggleEmailVisibility} 
                               className="ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                             >
                               {isEmailVisible ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -399,7 +438,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                           <div className="flex items-center gap-1">
                             <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}</p>
                             <button 
-                              onClick={() => setIsPhoneVisible(!isPhoneVisible)} 
+                              onClick={togglePhoneVisibility} 
                               className="ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                             >
                               {isPhoneVisible ? <EyeOff size={14} /> : <Eye size={14} />}

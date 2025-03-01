@@ -20,7 +20,37 @@ export default function Profile({ userConfig: initialUserConfig }) {
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPhoneVisible, setIsPhoneVisible] = useState(true);
+  const [isEmailVisible, setIsEmailVisible] = useState(true);
   const router = useRouter();
+
+  // 初始化时从localStorage读取隐藏状态
+  useEffect(() => {
+    // 从localStorage读取邮箱和电话隐藏状态
+    const savedEmailVisible = localStorage.getItem('isEmailVisible');
+    const savedPhoneVisible = localStorage.getItem('isPhoneVisible');
+    
+    if (savedEmailVisible !== null) {
+      setIsEmailVisible(savedEmailVisible === 'true');
+    }
+    
+    if (savedPhoneVisible !== null) {
+      setIsPhoneVisible(savedPhoneVisible === 'true');
+    }
+  }, []);
+  
+  // 更新邮箱可见性状态并保存到localStorage
+  const toggleEmailVisibility = () => {
+    const newState = !isEmailVisible;
+    setIsEmailVisible(newState);
+    localStorage.setItem('isEmailVisible', newState.toString());
+  };
+  
+  // 更新电话可见性状态并保存到localStorage
+  const togglePhoneVisibility = () => {
+    const newState = !isPhoneVisible;
+    setIsPhoneVisible(newState);
+    localStorage.setItem('isPhoneVisible', newState.toString());
+  };
 
   // 获取互动数据和文章
   const fetchInteractionData = async () => {
@@ -360,14 +390,25 @@ export default function Profile({ userConfig: initialUserConfig }) {
                 </div>
               </div>
               <div className="space-y-3">
-                <p><strong>邮箱:</strong> {userConfig.email}</p>
+                <p className="flex items-center">
+                  <strong>邮箱:</strong> 
+                  <span className="ml-1">
+                    {isEmailVisible ? userConfig.email : '****@**.com'}
+                  </span>
+                  <button 
+                    onClick={toggleEmailVisibility} 
+                    className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    {isEmailVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </p>
                 <p className="flex items-center">
                   <strong>电话:</strong> 
                   <span className="ml-1">
                     {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}
                   </span>
                   <button 
-                    onClick={() => setIsPhoneVisible(!isPhoneVisible)} 
+                    onClick={togglePhoneVisibility} 
                     className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                   >
                     {isPhoneVisible ? <EyeOff size={16} /> : <Eye size={16} />}
