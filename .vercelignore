@@ -1,0 +1,15 @@
+# 忽略node_modules
+node_modules
+
+# 忽略.next构建目录
+.next
+
+# 忽略其他不需要的文件
+.git
+.github
+.vscode
+.DS_Store
+
+# 不要忽略content目录
+!content/
+!content/* 

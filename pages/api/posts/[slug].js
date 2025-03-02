@@ -57,11 +57,13 @@ export default async function handler(req, res) {
     
     // 检查content目录是否存在
     if (!fs.existsSync(contentDir)) {
+      console.error('文章目录不存在:', contentDir);
       return res.status(404).json({ message: '文章目录不存在' });
     }
     
     // 如果文件不存在，返回404
     if (!fs.existsSync(filePath)) {
+      console.error('文章不存在:', filePath);
       return res.status(404).json({ message: '文章不存在' });
     }
     
@@ -70,6 +72,7 @@ export default async function handler(req, res) {
     try {
       fileContents = fs.readFileSync(filePath, 'utf8');
     } catch (readError) {
+      console.error('读取文件失败:', readError);
       return res.status(500).json({ message: '读取文件失败', error: readError.message });
     }
     
@@ -80,6 +83,7 @@ export default async function handler(req, res) {
       data = parsed.data;
       content = parsed.content;
     } catch (parseError) {
+      console.error('解析文章内容失败:', parseError);
       return res.status(500).json({ message: '解析文章内容失败', error: parseError.message });
     }
     
@@ -91,6 +95,7 @@ export default async function handler(req, res) {
         .process(content);
       contentHtml = processedContent.toString();
     } catch (markdownError) {
+      console.error('转换Markdown失败:', markdownError);
       return res.status(500).json({ message: '转换Markdown失败', error: markdownError.message });
     }
     
@@ -105,6 +110,7 @@ export default async function handler(req, res) {
       contentHtml: contentHtml // 同时返回HTML内容，用于显示
     });
   } catch (error) {
+    console.error('服务器错误:', error);
     return res.status(500).json({ message: '服务器错误', error: error.message });
   }
 } 

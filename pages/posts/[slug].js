@@ -9,16 +9,89 @@ import { Edit, ArrowLeft, Heart, Bookmark, Share } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { toast } from '../../components/ui/use-toast';
+// 这些导入将在客户端使用
+import { remark } from 'remark';
+import html from 'remark-html';
 
-export default function Post({ post }) {
+export default function Post({ post, useClientFetch, slug }) {
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [liked, setLiked] = useState(false);
     const [favorited, setFavorited] = useState(false);
+    const [clientPost, setClientPost] = useState(post);
+    const [isLoading, setIsLoading] = useState(useClientFetch);
+    const [error, setError] = useState(null);
     const router = useRouter();
     
+    // 如果需要在客户端获取文章内容
+    useEffect(() => {
+        if (useClientFetch && slug) {
+            const fetchArticle = async () => {
+                try {
+                    setIsLoading(true);
+                    console.log('客户端尝试获取文章内容，slug:', slug);
+                    
+                    const response = await fetch(`/api/get-article?slug=${slug}`);
+                    
+                    if (!response.ok) {
+                        console.error('获取文章内容失败，状态码:', response.status);
+                        throw new Error('无法获取文章内容');
+                    }
+                    
+                    const articleData = await response.json();
+                    console.log('客户端成功获取文章内容:', articleData.title);
+                    
+                    // 将Markdown转换为HTML
+                    const contentHtml = marked(articleData.content);
+                    
+                    setClientPost({
+                        ...articleData,
+                        contentHtml
+                    });
+                    setIsLoading(false);
+                } catch (error) {
+                    console.error('获取文章内容时出错:', error);
+                    setError('无法加载文章内容');
+                    setIsLoading(false);
+                }
+            };
+            
+            fetchArticle();
+        }
+    }, [useClientFetch, slug]);
+    
+    // 获取文章的点赞和收藏状态 - 将这个useEffect移到这里，确保它在所有条件渲染之前被调用
+    const currentPost = clientPost || post;
+    
+    useEffect(() => {
+        // 只有当有文章数据时才获取交互状态
+        if (currentPost) {
+            const fetchInteractions = async () => {
+                try {
+                    // 获取点赞状态
+                    const likeRes = await fetch(`/api/interactions/like`);
+                    const likeData = await likeRes.json();
+                    
+                    // 获取收藏状态
+                    const favoriteRes = await fetch(`/api/interactions/favorite`);
+                    const favoriteData = await favoriteRes.json();
+                    
+                    // 使用当前文章的slug
+                    const currentSlug = currentPost.slug || slug;
+                    
+                    setLiked(likeData.like && likeData.like.includes(currentSlug));
+                    setFavorited(favoriteData.favorite && favoriteData.favorite.includes(currentSlug));
+                } catch (error) {
+                    console.error('获取交互状态时出错:', error);
+                }
+            };
+            
+            fetchInteractions();
+        }
+    }, [currentPost, slug]);
+    
     // 如果页面正在加载或没有文章数据，显示加载状态
-    if (router.isFallback || !post) {
+    if (router.isFallback || isLoading) {
         return (
             <Layout>
                 <div className="container mx-auto py-8">
@@ -30,29 +103,50 @@ export default function Post({ post }) {
         );
     }
     
-    const { title, date, content, slug } = post;
-
-    // 获取文章的点赞和收藏状态
-    useEffect(() => {
-        const fetchInteractions = async () => {
-            try {
-                // 获取点赞状态
-                const likeRes = await fetch(`/api/interactions/like`);
-                const likeData = await likeRes.json();
-                
-                // 获取收藏状态
-                const favoriteRes = await fetch(`/api/interactions/favorite`);
-                const favoriteData = await favoriteRes.json();
-                
-                setLiked(likeData.like && likeData.like.includes(slug));
-                setFavorited(favoriteData.favorite && favoriteData.favorite.includes(slug));
-            } catch (error) {
-                console.error('获取交互状态时出错:', error);
-            }
-        };
-        
-        fetchInteractions();
-    }, [slug]);
+    // 如果出现错误，显示错误状态
+    if (error) {
+        return (
+            <Layout>
+                <div className="container mx-auto py-8">
+                    <div className="flex flex-col justify-center items-center h-64">
+                        <p className="text-lg text-red-500 dark:text-red-400 mb-4">{error}</p>
+                        <Link href="/" passHref legacyBehavior>
+                            <a>
+                                <Button variant="outline" className="flex items-center gap-1">
+                                    <ArrowLeft size={16} />
+                                    <span>返回首页</span>
+                                </Button>
+                            </a>
+                        </Link>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+    
+    // 如果没有文章数据，显示错误状态
+    if (!currentPost) {
+        return (
+            <Layout>
+                <div className="container mx-auto py-8">
+                    <div className="flex flex-col justify-center items-center h-64">
+                        <p className="text-lg text-red-500 dark:text-red-400 mb-4">无法加载文章</p>
+                        <Link href="/" passHref legacyBehavior>
+                            <a>
+                                <Button variant="outline" className="flex items-center gap-1">
+                                    <ArrowLeft size={16} />
+                                    <span>返回首页</span>
+                                </Button>
+                            </a>
+                        </Link>
+                    </div>
+                </div>
+            </Layout>
+        );
+    }
+    
+    // 使用客户端获取的文章数据或服务器端渲染的文章数据
+    const { title, date, content, contentHtml } = currentPost;
 
     const handleEdit = () => {
         setIsEditing(true);
@@ -65,86 +159,91 @@ export default function Post({ post }) {
     const handleSaveArticle = async (updatedArticle) => {
         setIsSaving(true);
         try {
+            // 使用当前文章的slug
+            const currentSlug = currentPost.slug || slug;
+            
             const response = await fetch('/api/save-article', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    slug,
+                    slug: currentSlug,
                     title: updatedArticle.title,
                     content: updatedArticle.content,
                     excerpt: updatedArticle.excerpt,
                     date: updatedArticle.date,
                     category: updatedArticle.category,
-                    coverImage: updatedArticle.coverImage
                 }),
             });
 
+            if (!response.ok) {
+                throw new Error('保存文章失败');
+            }
+
             const data = await response.json();
             
-            if (data.success) {
-                toast({
-                    title: "保存成功",
-                    description: "文章已成功保存",
-                    variant: "default"
-                });
-                // 刷新页面以显示更新后的内容
-                router.reload();
-            } else {
-                toast({
-                    title: "保存失败",
-                    description: data.message || "未知错误",
-                    variant: "destructive"
-                });
-            }
+            // 更新客户端文章数据
+            setClientPost({
+                ...clientPost,
+                title: updatedArticle.title,
+                content: updatedArticle.content,
+                excerpt: updatedArticle.excerpt,
+                date: updatedArticle.date,
+                category: updatedArticle.category,
+                contentHtml: marked(updatedArticle.content)
+            });
+            
+            setIsEditing(false);
+            toast({
+                title: "保存成功",
+                description: "文章已成功保存",
+            });
         } catch (error) {
+            console.error('保存文章时出错:', error);
             toast({
                 title: "保存失败",
-                description: "保存文章失败，请重试",
-                variant: "destructive"
+                description: "保存文章时出错",
+                variant: "destructive",
             });
         } finally {
             setIsSaving(false);
-            setIsEditing(false);
         }
     };
 
     // 处理点赞
     const handleLike = async () => {
         try {
-            const method = liked ? 'DELETE' : 'POST';
+            // 使用当前文章的slug
+            const currentSlug = currentPost.slug || slug;
             
-            const response = await fetch(`/api/interactions/like`, {
-                method,
+            const response = await fetch('/api/interactions/like', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ slug }),
+                body: JSON.stringify({
+                    slug: currentSlug,
+                    action: liked ? 'unlike' : 'like',
+                }),
             });
-            
-            const data = await response.json();
-            
-            if (response.ok) {
-                setLiked(!liked);
-                toast({
-                    title: !liked ? "已点赞" : "已取消点赞",
-                    description: data.message,
-                    variant: "default"
-                });
-            } else {
-                toast({
-                    title: "操作失败",
-                    description: data.message,
-                    variant: "destructive"
-                });
+
+            if (!response.ok) {
+                throw new Error('点赞操作失败');
             }
+
+            setLiked(!liked);
+            
+            toast({
+                title: liked ? "取消点赞" : "点赞成功",
+                description: liked ? "您已取消点赞" : "感谢您的点赞",
+            });
         } catch (error) {
-            console.error('点赞操作失败:', error);
+            console.error('点赞操作时出错:', error);
             toast({
                 title: "操作失败",
-                description: "点赞操作失败，请重试",
-                variant: "destructive"
+                description: "点赞操作时出错",
+                variant: "destructive",
             });
         }
     };
@@ -152,38 +251,36 @@ export default function Post({ post }) {
     // 处理收藏
     const handleFavorite = async () => {
         try {
-            const method = favorited ? 'DELETE' : 'POST';
+            // 使用当前文章的slug
+            const currentSlug = currentPost.slug || slug;
             
-            const response = await fetch(`/api/interactions/favorite`, {
-                method,
+            const response = await fetch('/api/interactions/favorite', {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ slug }),
+                body: JSON.stringify({
+                    slug: currentSlug,
+                    action: favorited ? 'unfavorite' : 'favorite',
+                }),
             });
-            
-            const data = await response.json();
-            
-            if (response.ok) {
-                setFavorited(!favorited);
-                toast({
-                    title: !favorited ? "已收藏" : "已取消收藏",
-                    description: data.message,
-                    variant: "default"
-                });
-            } else {
-                toast({
-                    title: "操作失败",
-                    description: data.message,
-                    variant: "destructive"
-                });
+
+            if (!response.ok) {
+                throw new Error('收藏操作失败');
             }
+
+            setFavorited(!favorited);
+            
+            toast({
+                title: favorited ? "取消收藏" : "收藏成功",
+                description: favorited ? "您已取消收藏" : "文章已加入收藏",
+            });
         } catch (error) {
-            console.error('收藏操作失败:', error);
+            console.error('收藏操作时出错:', error);
             toast({
                 title: "操作失败",
-                description: "收藏操作失败，请重试",
-                variant: "destructive"
+                description: "收藏操作时出错",
+                variant: "destructive",
             });
         }
     };
@@ -191,27 +288,39 @@ export default function Post({ post }) {
     // 处理分享
     const handleShare = async () => {
         try {
+            // 使用当前文章的slug
+            const currentSlug = currentPost.slug || slug;
+            
+            // 构建分享链接
+            const shareUrl = `${window.location.origin}/posts/${currentSlug}`;
+            
+            // 如果浏览器支持Web Share API
             if (navigator.share) {
                 await navigator.share({
                     title: title,
-                    text: post.excerpt,
-                    url: window.location.href,
+                    text: `查看这篇文章：${title}`,
+                    url: shareUrl,
+                });
+                
+                toast({
+                    title: "分享成功",
+                    description: "文章已成功分享",
                 });
             } else {
                 // 复制链接到剪贴板
-                await navigator.clipboard.writeText(window.location.href);
+                await navigator.clipboard.writeText(shareUrl);
+                
                 toast({
                     title: "链接已复制",
                     description: "文章链接已复制到剪贴板",
-                    variant: "default"
                 });
             }
         } catch (error) {
-            console.error('分享失败:', error);
+            console.error('分享操作时出错:', error);
             toast({
                 title: "分享失败",
-                description: "无法分享文章，请重试",
-                variant: "destructive"
+                description: "分享文章时出错",
+                variant: "destructive",
             });
         }
     };
@@ -223,11 +332,11 @@ export default function Post({ post }) {
                     <ArticleEditor
                         article={{
                             title: title,
-                            content: post.content,
-                            excerpt: post.excerpt,
+                            content: currentPost.content,
+                            excerpt: currentPost.excerpt,
                             date: date,
-                            category: post.category,
-                            coverImage: post.coverImage
+                            category: currentPost.category,
+                            coverImage: currentPost.coverImage
                         }}
                         onSave={handleSaveArticle}
                         onCancel={handleCancelEdit}
@@ -273,10 +382,10 @@ export default function Post({ post }) {
                             </p>
                         </CardHeader>
                         
-                        {post.coverImage && (
+                        {currentPost.coverImage && (
                             <div className="px-6 pb-4">
                                 <img 
-                                    src={post.coverImage} 
+                                    src={currentPost.coverImage} 
                                     alt={title}
                                     className="w-full h-auto rounded-lg object-cover max-h-[400px]"
                                 />
@@ -286,7 +395,7 @@ export default function Post({ post }) {
                         <CardContent>
                             <div 
                                 className="prose dark:prose-invert max-w-none animate-fade-in article-content"
-                                dangerouslySetInnerHTML={{ __html: post.contentHtml || marked(post.content) }}
+                                dangerouslySetInnerHTML={{ __html: contentHtml }}
                             />
                         </CardContent>
                         <CardFooter className="flex justify-between items-center border-t pt-4">
@@ -330,42 +439,125 @@ export default function Post({ post }) {
     );
 }
 
-export async function getServerSideProps({ params, req }) {
-    const { slug } = params;
-    
+export async function getStaticPaths() {
     try {
-        // 获取当前请求的主机信息，包括正确的端口
-        const host = req.headers.host || 'localhost:3000';
-        const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || `${protocol}://${host}`;
+        // 动态导入fs和path模块
+        const fs = await import('fs');
+        const path = await import('path');
+        const contentDir = path.join(process.cwd(), 'content');
         
-        // 确保URL格式正确
-        const apiUrl = new URL(`/api/posts/${slug}`, baseUrl).toString();
+        console.log('获取静态路径，内容目录:', contentDir);
         
-        console.log(`尝试获取文章数据，API URL: ${apiUrl}`);
-        
-        // 尝试从API获取文章数据
-        const res = await fetch(apiUrl);
-        
-        // 如果API返回成功，使用API数据
-        if (res.ok) {
-            const post = await res.json();
-            console.log(`成功获取文章数据: ${slug}`);
+        // 如果content目录不存在，返回空路径
+        if (!fs.existsSync(contentDir)) {
+            console.error('文章目录不存在:', contentDir);
             return {
-                props: { post }
+                paths: [],
+                fallback: true // 改为true，允许在运行时生成页面
             };
         }
         
-        console.log(`API请求失败，状态码: ${res.status}`);
+        // 读取content目录中的所有.md文件
+        const files = fs.readdirSync(contentDir).filter(file => file.endsWith('.md'));
+        console.log('找到的Markdown文件:', files);
         
-        // 如果API请求失败，返回404
+        // 为每个文件创建路径
+        const paths = files.map(file => ({
+            params: {
+                slug: file.replace(/\.md$/, '')
+            }
+        }));
+        
+        console.log('生成的路径:', paths);
+        
         return {
-            notFound: true
+            paths,
+            fallback: true // 改为true，允许在运行时生成页面
         };
     } catch (error) {
-        console.error('获取文章数据时出错:', error);
+        console.error('获取文章路径时出错:', error);
         return {
-            notFound: true
+            paths: [],
+            fallback: true // 改为true，允许在运行时生成页面
+        };
+    }
+}
+
+export async function getStaticProps({ params }) {
+    const { slug } = params;
+    
+    console.log('获取静态属性，文章slug:', slug);
+    
+    try {
+        // 动态导入fs和path模块
+        const fs = await import('fs');
+        const path = await import('path');
+        const matter = await import('gray-matter').then(mod => mod.default || mod);
+        
+        const contentDir = path.join(process.cwd(), 'content');
+        const filePath = path.join(contentDir, `${slug}.md`);
+        
+        console.log('尝试读取文件:', filePath);
+        
+        // 检查文件是否存在
+        if (!fs.existsSync(filePath)) {
+            console.error('文件不存在:', filePath);
+            return {
+                notFound: true,
+                revalidate: 10 // 10秒后重新尝试生成
+            };
+        }
+        
+        // 读取文件内容
+        const fileContents = fs.readFileSync(filePath, 'utf8');
+        console.log('成功读取文件内容，长度:', fileContents.length);
+        
+        // 解析文章内容
+        const { data, content } = matter(fileContents);
+        console.log('解析的文章元数据:', data);
+        
+        // 将Markdown转换为HTML，使用顶部导入的remark和html
+        const processedContent = await remark()
+            .use(html)
+            .process(content);
+        const contentHtml = processedContent.toString();
+        
+        // 确保日期格式正确
+        let formattedDate;
+        try {
+            formattedDate = data.date ? new Date(data.date).toISOString() : new Date().toISOString();
+        } catch (dateError) {
+            console.error('日期格式化错误:', dateError);
+            formattedDate = new Date().toISOString();
+        }
+        
+        return {
+            props: {
+                post: {
+                    slug,
+                    title: data.title || slug,
+                    date: formattedDate,
+                    excerpt: data.excerpt || '',
+                    category: data.category || '未分类',
+                    coverImage: data.coverImage || null,
+                    content: content,
+                    contentHtml: contentHtml
+                },
+                useClientFetch: false
+            },
+            // 每分钟重新生成页面
+            revalidate: 60 // 减少到60秒，更频繁地重新验证
+        };
+    } catch (error) {
+        console.error('获取文章数据时出错:', error, error.stack);
+        
+        // 在出错的情况下，返回useClientFetch为true，让客户端尝试获取
+        return {
+            props: {
+                slug,
+                useClientFetch: true
+            },
+            revalidate: 10
         };
     }
 }
