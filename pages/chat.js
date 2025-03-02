@@ -9,6 +9,15 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../compone
 import { Separator } from '../components/ui/separator';
 import { toast } from '../components/ui/use-toast';
 import Layout from '../components/layout';
+import { marked } from 'marked';
+
+// 配置marked选项，增强Markdown渲染效果
+marked.setOptions({
+  breaks: true, // 启用换行符转换为<br>
+  gfm: true,    // 启用GitHub风格的Markdown
+  headerIds: true, // 为标题添加ID
+  mangle: false // 不转义HTML标签中的内容
+});
 
 /**
  * AI聊天室页面组件
@@ -252,13 +261,13 @@ export default function ChatPage() {
           </Button>
           <h1 className="text-2xl font-bold">AI聊天室</h1>
           <Button 
-            variant="ghost" 
-            size="icon" 
+            variant="outline" 
             onClick={clearChat}
-            className="ml-auto text-red-500 hover:text-red-700 hover:bg-red-100"
+            className="ml-auto text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg"
             title="清空聊天"
           >
-            <Trash size={18} />
+            <Trash size={18} className="mr-1" />
+            清空聊天
           </Button>
         </div>
 
@@ -294,7 +303,14 @@ export default function ChatPage() {
                           : 'bg-muted'
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      {message.role === 'user' ? (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div 
+                          className="text-sm prose dark:prose-invert prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: marked(message.content) }}
+                        />
+                      )}
                     </div>
                     {message.role === 'user' && (
                       <div className="h-8 w-8 mt-1 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
