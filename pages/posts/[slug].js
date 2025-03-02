@@ -444,21 +444,45 @@ export async function getStaticPaths() {
         // 动态导入fs和path模块
         const fs = await import('fs');
         const path = await import('path');
-        const contentDir = path.join(process.cwd(), 'content');
+        
+        // 尝试多个可能的内容目录路径
+        const possibleContentDirs = [
+            path.join(process.cwd(), 'content'),
+            path.join(process.cwd(), '.next/server/content'),
+            path.join(process.cwd(), '.next/content'),
+            path.join(process.cwd(), '../content'),
+            path.join(process.cwd(), '../../content')
+        ];
+        
+        let contentDir = null;
+        let files = [];
+        
+        // 尝试从各个可能的路径读取文件列表
+        for (const possibleDir of possibleContentDirs) {
+            try {
+                console.log('尝试读取内容目录:', possibleDir);
+                if (fs.existsSync(possibleDir)) {
+                    contentDir = possibleDir;
+                    files = fs.readdirSync(possibleDir).filter(file => file.endsWith('.md'));
+                    console.log('成功从目录读取文件列表:', possibleDir, files.length);
+                    break;
+                }
+            } catch (err) {
+                console.log('无法从目录读取文件列表:', possibleDir, err.message);
+            }
+        }
         
         console.log('获取静态路径，内容目录:', contentDir);
         
-        // 如果content目录不存在，返回空路径
-        if (!fs.existsSync(contentDir)) {
-            console.error('文章目录不存在:', contentDir);
+        // 如果没有找到任何内容目录或文件，返回空路径
+        if (!contentDir || files.length === 0) {
+            console.error('未找到有效的文章目录或文件');
             return {
                 paths: [],
                 fallback: true // 改为true，允许在运行时生成页面
             };
         }
         
-        // 读取content目录中的所有.md文件
-        const files = fs.readdirSync(contentDir).filter(file => file.endsWith('.md'));
         console.log('找到的Markdown文件:', files);
         
         // 为每个文件创建路径
@@ -494,22 +518,42 @@ export async function getStaticProps({ params }) {
         const path = await import('path');
         const matter = await import('gray-matter').then(mod => mod.default || mod);
         
-        const contentDir = path.join(process.cwd(), 'content');
-        const filePath = path.join(contentDir, `${slug}.md`);
+        // 尝试多个可能的路径
+        const possiblePaths = [
+            path.join(process.cwd(), 'content', `${slug}.md`),
+            path.join(process.cwd(), '.next/server/content', `${slug}.md`),
+            path.join(process.cwd(), '.next/content', `${slug}.md`),
+            path.join(process.cwd(), '../content', `${slug}.md`),
+            path.join(process.cwd(), '../../content', `${slug}.md`)
+        ];
         
-        console.log('尝试读取文件:', filePath);
+        let fileContents = null;
+        let filePath = null;
         
-        // 检查文件是否存在
-        if (!fs.existsSync(filePath)) {
-            console.error('文件不存在:', filePath);
+        // 尝试从各个可能的路径读取文件
+        for (const possiblePath of possiblePaths) {
+            try {
+                console.log('尝试读取文件:', possiblePath);
+                if (fs.existsSync(possiblePath)) {
+                    fileContents = fs.readFileSync(possiblePath, 'utf8');
+                    filePath = possiblePath;
+                    console.log('成功从路径读取文件:', possiblePath);
+                    break;
+                }
+            } catch (err) {
+                console.log('无法从路径读取文件:', possiblePath, err.message);
+            }
+        }
+        
+        // 如果所有路径都失败，则返回404
+        if (!fileContents) {
+            console.error('所有路径都无法找到文件:', slug);
             return {
                 notFound: true,
                 revalidate: 10 // 10秒后重新尝试生成
             };
         }
         
-        // 读取文件内容
-        const fileContents = fs.readFileSync(filePath, 'utf8');
         console.log('成功读取文件内容，长度:', fileContents.length);
         
         // 解析文章内容

@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
@@ -34,10 +36,22 @@ const nextConfig = {
               to: '../server/content',
               noErrorOnMissing: true
             },
+            // 添加到根目录，确保Vercel可以找到
+            { 
+              from: 'content', 
+              to: '../../content',
+              noErrorOnMissing: true
+            },
           ],
         })
       );
     }
+    
+    // 添加别名，使得在任何环境中都能找到content目录
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@content': path.join(__dirname, 'content')
+    };
     
     return config;
   },
