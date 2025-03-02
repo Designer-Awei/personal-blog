@@ -1,0 +1,13 @@
+{
+  "projectId": "personal-blog",
+  "orgId": "personal",
+  "settings": {
+    "framework": "nextjs",
+    "buildCommand": null,
+    "devCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "18.x"
+  }
+} 

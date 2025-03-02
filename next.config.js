@@ -16,6 +16,12 @@ const nextConfig = {
       console.log('开发环境配置已加载');
     }
     
+    // 添加别名，使得在任何环境中都能找到content目录
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@content': path.join(__dirname, 'content')
+    };
+    
     // 确保文件系统模块在服务器端可用
     if (isServer) {
       console.log('服务器端配置已加载');
@@ -35,23 +41,11 @@ const nextConfig = {
               from: 'content', 
               to: '../server/content',
               noErrorOnMissing: true
-            },
-            // 添加到根目录，确保Vercel可以找到
-            { 
-              from: 'content', 
-              to: '../../content',
-              noErrorOnMissing: true
-            },
+            }
           ],
         })
       );
     }
-    
-    // 添加别名，使得在任何环境中都能找到content目录
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@content': path.join(__dirname, 'content')
-    };
     
     return config;
   },
