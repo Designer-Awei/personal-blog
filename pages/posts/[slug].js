@@ -545,12 +545,15 @@ export async function getStaticProps({ params }) {
             }
         }
         
-        // 如果所有路径都失败，则返回404
+        // 如果所有路径都失败，则返回useClientFetch为true，让客户端尝试获取
         if (!fileContents) {
             console.error('所有路径都无法找到文件:', slug);
             return {
-                notFound: true,
-                revalidate: 10 // 10秒后重新尝试生成
+                props: {
+                    slug,
+                    useClientFetch: true
+                },
+                revalidate: 10
             };
         }
         
