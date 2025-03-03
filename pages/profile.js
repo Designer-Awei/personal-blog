@@ -445,7 +445,7 @@ export default function Profile({ userConfig: initialUserConfig }) {
                 <p className="flex items-center">
                   <strong>电话:</strong> 
                   <span className="ml-1">
-                    {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}
+                    {isPhoneVisible ? userConfig.phone : '*** **** ****'}
                   </span>
                   <button 
                     onClick={togglePhoneVisibility} 

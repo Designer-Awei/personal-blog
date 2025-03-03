@@ -21,7 +21,7 @@ function ensureConfigDir() {
 const defaultConfig = {
   name: 'Designer-Awei',
   email: '1974379701@qq.com',
-  phone: '15057616150',
+  phone: '11111111111',
   location: '浙江杭州',
   skills: 'Solidworks、KeyShot、Cursor',
   occupation: '设计师',

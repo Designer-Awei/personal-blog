@@ -440,4 +440,50 @@ a:hover {
 
 .dark .prose table th {
   background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 确保搜索推荐框的定位和显示正确 */
+.absolute.z-50 {
+  position: absolute !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* 确保搜索图标始终可见 */
+form[class*="relative z-50"] .absolute {
+  z-index: 51 !important;
+}
+
+/* 窄屏下调整搜索框位置 */
+@media (max-width: 768px) {
+  .md\:col-span-3 > div:first-child {
+    margin-top: 1rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+}
+
+/* 确保文章卡片在移动端视图中位于个人信息卡片的上方 */
+@media (max-width: 768px) {
+  .md\:col-span-3 {
+    position: relative;
+    z-index: 30;
+  }
+  
+  .md\:col-span-1 {
+    position: relative;
+    z-index: 20;
+  }
+  
+  .card-hover-effect {
+    position: relative;
+    z-index: 25;
+  }
+  
+  /* 确保搜索提示框在移动端视图中位于最上层 */
+  form[class*="relative z-50"],
+  div[class*="relative z-50"],
+  input[class*="relative z-50"],
+  div[class*="absolute z-50"] {
+    position: relative;
+    z-index: 50 !important;
+  }
 } 

@@ -9,7 +9,7 @@ import ImageUploader from './ImageUploader';
 export default function ProfileEditor({ userConfig, onSave, onCancel }) {
   const [name, setName] = useState(userConfig.name);
   const [email, setEmail] = useState(userConfig.email);
-  const [phone, setPhone] = useState(userConfig.phone || '15057616150');
+  const [phone, setPhone] = useState(userConfig.phone || '11111111111');
   const [location, setLocation] = useState(userConfig.location);
   const [skills, setSkills] = useState(userConfig.skills);
   const [bio, setBio] = useState(userConfig.bio);

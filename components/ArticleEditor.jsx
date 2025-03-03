@@ -4,7 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card'
 import { Input } from './ui/input';
 import { Save, X, Image, FolderOpen } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from './ui/dialog';
 
 export default function ArticleEditor({ article, onSave, onCancel }) {
   const [title, setTitle] = useState(article.title);
@@ -223,6 +223,9 @@ export default function ArticleEditor({ article, onSave, onCancel }) {
                 <DialogContent className="max-w-3xl">
                   <DialogHeader>
                     <DialogTitle>选择封面图片</DialogTitle>
+                    <DialogDescription>
+                      从已上传的图片中选择一张作为文章封面
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 max-h-[60vh] overflow-y-auto p-2">
                     {isLoadingImages ? (
@@ -248,7 +251,7 @@ export default function ArticleEditor({ article, onSave, onCancel }) {
                       ))
                     ) : (
                       <div className="col-span-full text-center py-8 text-gray-500">
-                        没有找到已存储的封面图片
+                        暂无已上传的图片
                       </div>
                     )}
                   </div>

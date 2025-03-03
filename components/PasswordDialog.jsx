@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Lock, Eye, EyeOff } from 'lucide-react';
@@ -88,11 +88,11 @@ export default function PasswordDialog({ open, onOpenChange, onSuccess, onCancel
             <Lock size={18} className="text-primary" />
             <span>隐私信息验证</span>
           </DialogTitle>
+          <DialogDescription>
+            查看隐私信息需要验证密码，初始密码为123456
+          </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            查看隐私信息需要验证密码，初始密码为123456
-          </p>
           <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
             密码存储在项目根目录的privacy-password.json文件中，您可以直接编辑该文件修改密码
           </p>

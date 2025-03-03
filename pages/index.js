@@ -60,7 +60,33 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
     // 检测是否在Vercel环境中
     setIsVercelEnv(isVercelEnvironment());
+    
+    // 更新电话号码
+    updatePhoneNumber();
   }, []);
+
+  // 更新电话号码
+  const updatePhoneNumber = async () => {
+    try {
+      console.log('正在更新电话号码...');
+      const response = await fetch('/api/update-phone', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('电话号码更新成功:', data.phone);
+        setUserConfig(prev => ({
+          ...prev,
+          phone: data.phone
+        }));
+      } else {
+        console.error('更新电话号码失败:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('更新电话号码时出错:', error);
+    }
+  };
 
   // 更新邮箱可见性状态并保存到localStorage
   const toggleEmailVisibility = () => {
@@ -424,7 +450,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
       >
         {/* 个人信息区域 - 左侧 */}
         <motion.div 
-          className="md:col-span-1 sticky top-4 self-start"
+          className="md:col-span-1 sticky top-4 self-start z-10"
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -480,7 +506,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                         <Phone size={16} className="text-primary mt-1" />
                         <div className="flex-1">
                           <div className="flex items-center gap-1">
-                            <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone || '15057616150' : '*** **** ****'}</p>
+                            <p><strong>电话:</strong> {isPhoneVisible ? userConfig.phone : '*** **** ****'}</p>
                             <button 
                               onClick={togglePhoneVisibility} 
                               className="ml-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
@@ -545,14 +571,14 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
         {/* 文章列表区域 - 右侧 */}
         <motion.div 
-          className="md:col-span-3"
+          className="md:col-span-3 z-20 relative"
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <div className="mb-6 relative">
-            <form onSubmit={handleSearch} className="w-full relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+          <div className="mb-16 md:mb-6 relative z-50">
+            <form onSubmit={handleSearch} className="w-full relative z-50">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400 z-[51]" />
               <Input
                 ref={searchRef}
                 type="text"
@@ -567,10 +593,11 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
               {/* 搜索建议 */}
               {showSearchSuggestions && (
                 <motion.div 
-                  className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700"
+                  className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md border border-gray-200 dark:border-gray-700"
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
+                  style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}
                 >
                   {searchTerm.length > 0 && searchSuggestions.length > 0 ? (
                     <div>
@@ -633,10 +660,10 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
               animate="show"
             >
               {filteredPosts.map((post, index) => (
-                <motion.div key={post.slug} variants={item}>
+                <motion.div key={post.slug} variants={item} className="relative z-20">
                   <Link href={`/posts/${post.slug}`} passHref legacyBehavior>
                     <a className="block h-full">
-                      <Card className="h-full cursor-pointer card-hover-effect overflow-hidden">
+                      <Card className="h-full cursor-pointer card-hover-effect overflow-hidden relative z-20">
                         <div className="flex flex-row h-full">
                           {/* 左侧图片区域 - 占1/3宽度，铺满无边框 */}
                           <div className="w-1/3 relative" style={{ minHeight: "180px" }}>
@@ -870,7 +897,7 @@ export async function getServerSideProps() {
   let userConfig = {
     name: 'Designer-Awei',
     email: '1974379701@qq.com',
-    phone: '15057616150',
+    phone: '11111111111',
     location: '浙江杭州',
     skills: 'Solidworks、KeyShot、Cursor',
     occupation: '设计师',
