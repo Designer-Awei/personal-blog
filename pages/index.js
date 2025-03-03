@@ -735,7 +735,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
         whileTap={{ scale: 0.98 }}
         onClick={handleCreateNewArticle}
         className={`floating-button ${isVercelEnv ? 'bg-gray-500 hover:bg-gray-600' : 'bg-primary hover:bg-primary/90'} text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto`}
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: 100, opacity: 0, boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
       >
@@ -750,7 +750,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
         onClick={() => router.push('/chat')}
         className="floating-button bg-primary hover:bg-primary/90 text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto"
         style={{ bottom: "6rem", right: "2rem" }}
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: 100, opacity: 0, boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
       >

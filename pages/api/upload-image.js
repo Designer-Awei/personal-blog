@@ -9,14 +9,20 @@ export const config = {
   },
 };
 
+/**
+ * 处理图片上传的API
+ * @param {object} req - 请求对象
+ * @param {object} res - 响应对象
+ * @returns {Promise} 处理结果
+ */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: '只支持POST请求' });
   }
 
   try {
-    // 确保上传目录存在
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    // 确保封面图片目录存在
+    const uploadDir = path.join(process.cwd(), 'public', 'images', 'covers');
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -51,7 +57,7 @@ export default async function handler(req, res) {
           const timestamp = Date.now();
           const originalFilename = uploadedFile.originalFilename || 'image.jpg';
           const fileExtension = path.extname(originalFilename);
-          const newFilename = `image-${timestamp}${fileExtension}`;
+          const newFilename = `cover-${timestamp}${fileExtension}`;
           
           // 移动文件到最终位置
           const finalPath = path.join(uploadDir, newFilename);
@@ -73,7 +79,7 @@ export default async function handler(req, res) {
           }
           
           // 返回图片URL
-          const imageUrl = `/uploads/${newFilename}`;
+          const imageUrl = `/images/covers/${newFilename}`;
           res.status(200).json({ 
             message: '上传成功', 
             imageUrl 

@@ -12,6 +12,7 @@ import { toast } from '../../components/ui/use-toast';
 // 这些导入将在客户端使用
 import { remark } from 'remark';
 import html from 'remark-html';
+import { isVercelEnvironment } from '../../lib/utils';
 
 export default function Post({ post, useClientFetch, slug }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -22,6 +23,7 @@ export default function Post({ post, useClientFetch, slug }) {
     const [isLoading, setIsLoading] = useState(useClientFetch);
     const [error, setError] = useState(null);
     const router = useRouter();
+    const [isVercelEnv, setIsVercelEnv] = useState(false);
     
     // 如果需要在客户端获取文章内容
     useEffect(() => {
@@ -90,6 +92,10 @@ export default function Post({ post, useClientFetch, slug }) {
         }
     }, [currentPost, slug]);
     
+    useEffect(() => {
+        setIsVercelEnv(isVercelEnvironment());
+    }, []);
+    
     // 如果页面正在加载或没有文章数据，显示加载状态
     if (router.isFallback || isLoading) {
         return (
@@ -149,6 +155,14 @@ export default function Post({ post, useClientFetch, slug }) {
     const { title, date, content, contentHtml } = currentPost;
 
     const handleEdit = () => {
+        if (isVercelEnv) {
+            toast({
+                title: "功能暂不可用",
+                description: "在Vercel环境中暂不支持编辑文章功能，请在本地环境中使用此功能。",
+                variant: "destructive"
+            });
+            return;
+        }
         setIsEditing(true);
     };
 
@@ -174,6 +188,7 @@ export default function Post({ post, useClientFetch, slug }) {
                     excerpt: updatedArticle.excerpt,
                     date: updatedArticle.date,
                     category: updatedArticle.category,
+                    coverImage: updatedArticle.coverImage
                 }),
             });
 
@@ -191,6 +206,7 @@ export default function Post({ post, useClientFetch, slug }) {
                 excerpt: updatedArticle.excerpt,
                 date: updatedArticle.date,
                 category: updatedArticle.category,
+                coverImage: updatedArticle.coverImage,
                 contentHtml: marked(updatedArticle.content)
             });
             
@@ -363,10 +379,12 @@ export default function Post({ post, useClientFetch, slug }) {
                             </Button>
                         </a>
                     </Link>
-                    <Button onClick={handleEdit} className="flex items-center gap-1">
-                        <Edit size={16} />
-                        <span>编辑文章</span>
-                    </Button>
+                    {!isVercelEnv && (
+                        <Button onClick={handleEdit} className="flex items-center gap-1">
+                            <Edit size={16} />
+                            <span>编辑文章</span>
+                        </Button>
+                    )}
                 </div>
 
                 <motion.div

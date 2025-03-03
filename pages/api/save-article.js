@@ -1,14 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-
-/**
- * 检查环境是否为Vercel生产环境
- * @returns {boolean} 是否为Vercel生产环境
- */
-function isVercelProduction() {
-  return process.env.VERCEL_ENV === 'production' || process.env.VERCEL === '1';
-}
+import { isVercelEnvironment } from '../../lib/utils';
 
 /**
  * 保存文章API处理函数
@@ -21,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   // 检查是否在Vercel环境中
-  if (isVercelProduction()) {
+  if (isVercelEnvironment()) {
     return res.status(403).json({ 
       message: '在Vercel环境中暂不支持编辑文章功能',
       isVercel: true
