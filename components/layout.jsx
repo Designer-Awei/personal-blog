@@ -31,10 +31,11 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen">
       <motion.header 
-        className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur"
+        className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 shadow-sm"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
+        style={{ position: 'sticky', top: 0 }}
       >
         <div className="container flex h-16 items-center justify-between py-4">
           <motion.div 
