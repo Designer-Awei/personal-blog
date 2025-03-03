@@ -2,6 +2,10 @@
  * 博客通知内容配置文件
  * 可以在此文件中添加、修改或删除通知内容
  * 每个通知对象包含id和content两个属性
+ * @typedef {Object} Notification
+ * @property {number} id - 通知的唯一标识符
+ * @property {string} content - 通知的内容文本
+ * @returns {Notification[]} 通知数组
  */
 const notifications = [
   {
@@ -15,6 +19,10 @@ const notifications = [
   {
     id: 3,
     content: "近期推荐阅读：《Web开发趋势与最佳实践》，了解最新的前端开发技术和方法。"
+  },
+  {
+    id: 4,
+    content: "彩蛋~悄悄更新了一个在线飞行游戏网站，快来找找吧~"
   }
 ];
 
