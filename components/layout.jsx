@@ -3,6 +3,7 @@ import ThemeToggle from './theme-toggle'
 import { motion } from 'framer-motion'
 import { Home } from 'lucide-react'
 import { useEffect } from 'react'
+import NotificationBar from './NotificationBar'
 
 export default function Layout({ children }) {
   // 确保在客户端渲染时应用保存的主题颜色
@@ -51,6 +52,10 @@ export default function Layout({ children }) {
           <ThemeToggle />
         </div>
       </motion.header>
+      
+      {/* 公告栏组件 */}
+      <NotificationBar />
+      
       <main className="container py-6">
         {children}
       </main>
