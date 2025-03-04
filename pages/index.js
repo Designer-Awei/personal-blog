@@ -555,16 +555,14 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                     {link.name}
                   </motion.a>
                 ))}
-                {userConfig.socialLinks.length > 2 && (
-                  <motion.a 
-                    href="/links" 
-                    className="text-blue-500 hover:text-blue-700"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    索引合集
-                  </motion.a>
-                )}
+                <motion.a 
+                  href="/links" 
+                  className="text-blue-500 hover:text-blue-700"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  索引合集
+                </motion.a>
               </div>
               <motion.button
                 onClick={handleGoToProfile}
