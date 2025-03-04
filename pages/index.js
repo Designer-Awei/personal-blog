@@ -542,7 +542,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
             </CardContent>
             <CardFooter className="flex justify-between items-center">
               <div className="flex space-x-4">
-                {userConfig.socialLinks.map((link, index) => (
+                {userConfig.socialLinks.slice(0, 2).map((link, index) => (
                   <motion.a 
                     key={index} 
                     href={link.url} 
@@ -555,6 +555,16 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                     {link.name}
                   </motion.a>
                 ))}
+                {userConfig.socialLinks.length > 2 && (
+                  <motion.a 
+                    href="/links" 
+                    className="text-blue-500 hover:text-blue-700"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    索引合集
+                  </motion.a>
+                )}
               </div>
               <motion.button
                 onClick={handleGoToProfile}

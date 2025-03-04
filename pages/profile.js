@@ -458,7 +458,7 @@ export default function Profile({ userConfig: initialUserConfig }) {
                 <p><strong>技能:</strong> {userConfig.skills}</p>
                 <p className="mt-4">{userConfig.bio}</p>
                 <div className="flex space-x-4 mt-4">
-                  {userConfig.socialLinks.map((link, index) => (
+                  {userConfig.socialLinks.slice(0, 2).map((link, index) => (
                     <a 
                       key={index} 
                       href={link.url} 
@@ -469,6 +469,14 @@ export default function Profile({ userConfig: initialUserConfig }) {
                       {link.name}
                     </a>
                   ))}
+                  {userConfig.socialLinks.length > 2 && (
+                    <Link 
+                      href="/links"
+                      className="text-blue-500 hover:text-blue-700"
+                    >
+                      索引合集
+                    </Link>
+                  )}
                 </div>
               </div>
             </CardContent>
