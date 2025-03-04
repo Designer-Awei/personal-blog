@@ -379,12 +379,12 @@ export default function Post({ post, useClientFetch, slug }) {
                             </Button>
                         </a>
                     </Link>
-                    {!isVercelEnv && (
+                    {!isVercelEnv ? (
                         <Button onClick={handleEdit} className="flex items-center gap-1">
                             <Edit size={16} />
                             <span>编辑文章</span>
                         </Button>
-                    )}
+                    ) : null}
                 </div>
 
                 <motion.div
