@@ -56,11 +56,13 @@ export default function LinksPage({ userConfig }) {
                   whileHover={{ scale: 1.02, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0 overflow-hidden">
                     <h3 className="font-medium">{link.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{link.url}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate w-full" title={link.url}>
+                      {link.url}
+                    </p>
                   </div>
-                  <ExternalLink size={16} className="text-gray-400" />
+                  <ExternalLink size={16} className="text-gray-400 flex-shrink-0 ml-2" />
                 </motion.a>
               ))}
             </div>
