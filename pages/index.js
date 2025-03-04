@@ -15,7 +15,7 @@ import ImageUploader from '../components/ImageUploader';
 import { getUserConfig } from '../lib/userConfig';
 import { useRouter } from 'next/router';
 import PasswordDialog from '../components/PasswordDialog';
-import { isVercelEnvironment } from '../lib/utils';
+import { isVercelEnvironment, isLocalEnvironment } from '../lib/utils';
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
@@ -39,7 +39,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [pendingVisibilityAction, setPendingVisibilityAction] = useState(null);
 
-  // 初始化时从localStorage加载最近搜索记录和隐藏状态，并检测Vercel环境
+  // 初始化时从localStorage加载最近搜索记录和隐藏状态，并检测环境
   useEffect(() => {
     const savedSearches = localStorage.getItem('recentSearches');
     if (savedSearches) {
@@ -58,8 +58,8 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
       setIsPhoneVisible(savedPhoneVisible === 'true');
     }
 
-    // 检测是否在Vercel环境中
-    setIsVercelEnv(isVercelEnvironment());
+    // 检测是否在本地环境中
+    setIsVercelEnv(!isLocalEnvironment());
     
     // 更新电话号码
     updatePhoneNumber();
@@ -247,11 +247,11 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
   // 创建新文章
   const handleCreateNewArticle = () => {
-    // 如果在Vercel环境中，显示提示信息
-    if (isVercelEnv) {
+    // 如果不是本地环境，显示提示信息
+    if (!isLocalEnvironment()) {
       toast({
         title: "功能暂不可用",
-        description: "在Vercel环境中暂不支持新增文章功能，请在本地环境中使用此功能。",
+        description: "创建文章功能仅在本地环境可用，请在本地开发环境中使用此功能。",
         variant: "destructive"
       });
       return;

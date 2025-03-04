@@ -12,7 +12,7 @@ import { toast } from '../../components/ui/use-toast';
 // 这些导入将在客户端使用
 import { remark } from 'remark';
 import html from 'remark-html';
-import { isVercelEnvironment } from '../../lib/utils';
+import { isVercelEnvironment, isLocalEnvironment } from '../../lib/utils';
 
 export default function Post({ post, useClientFetch, slug }) {
     const [isEditing, setIsEditing] = useState(false);
@@ -93,7 +93,7 @@ export default function Post({ post, useClientFetch, slug }) {
     }, [currentPost, slug]);
     
     useEffect(() => {
-        setIsVercelEnv(isVercelEnvironment());
+        setIsVercelEnv(!isLocalEnvironment());
     }, []);
     
     // 如果页面正在加载或没有文章数据，显示加载状态
@@ -379,12 +379,12 @@ export default function Post({ post, useClientFetch, slug }) {
                             </Button>
                         </a>
                     </Link>
-                    {!isVercelEnv ? (
+                    {isLocalEnvironment() && (
                         <Button onClick={handleEdit} className="flex items-center gap-1">
                             <Edit size={16} />
                             <span>编辑文章</span>
                         </Button>
-                    ) : null}
+                    )}
                 </div>
 
                 <motion.div

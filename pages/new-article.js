@@ -6,23 +6,35 @@ import { toast } from '../components/ui/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { isLocalEnvironment } from '../lib/utils';
 
 export default function NewArticle() {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isVercelEnv, setIsVercelEnv] = useState(false);
+  const [isLocalEnv, setIsLocalEnv] = useState(false);
   const router = useRouter();
 
-  // 检测是否在Vercel环境中
+  // 检测是否在本地环境中
   useEffect(() => {
-    setIsVercelEnv(window.location.hostname.includes('vercel.app'));
-  }, []);
+    const isLocal = isLocalEnvironment();
+    setIsLocalEnv(isLocal);
+    
+    // 如果不是本地环境，重定向到首页
+    if (!isLocal) {
+      toast({
+        title: "访问受限",
+        description: "创建文章功能仅在本地环境可用",
+        variant: "destructive"
+      });
+      router.push('/');
+    }
+  }, [router]);
 
   const handleSubmit = async (articleData) => {
-    // 如果在Vercel环境中，禁止提交
-    if (isVercelEnv) {
+    // 如果不是本地环境，禁止提交
+    if (!isLocalEnv) {
       toast({
         title: "功能暂不可用",
-        description: "在Vercel环境中暂不支持新增文章功能，请在本地环境中使用此功能。",
+        description: "创建文章功能仅在本地环境可用，请在本地开发环境中使用此功能。",
         variant: "destructive"
       });
       return;
