@@ -130,8 +130,8 @@ export default function NewArticle() {
     router.push('/');
   };
 
-  // 如果在Vercel环境中，显示功能不可用的提示
-  if (isVercelEnv) {
+  // 如果不是本地环境，显示功能不可用的提示
+  if (!isLocalEnv) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -153,12 +153,12 @@ export default function NewArticle() {
                 功能暂不可用
               </CardTitle>
               <CardDescription>
-                在Vercel环境中暂不支持新增文章功能
+                创建文章功能仅在本地环境可用
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="mb-4">
-                由于Vercel的无服务器环境限制，目前不支持在此环境中创建新文章。我们正在开发使用数据库的解决方案，敬请期待。
+                由于安全限制，目前仅支持在本地开发环境中创建新文章。我们正在开发使用数据库的解决方案，敬请期待。
               </p>
               <p>
                 如需使用此功能，请在本地开发环境中运行应用。

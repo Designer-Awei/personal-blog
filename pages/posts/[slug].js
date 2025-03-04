@@ -155,10 +155,10 @@ export default function Post({ post, useClientFetch, slug }) {
     const { title, date, content, contentHtml } = currentPost;
 
     const handleEdit = () => {
-        if (isVercelEnv) {
+        if (!isLocalEnvironment()) {
             toast({
                 title: "功能暂不可用",
-                description: "在Vercel环境中暂不支持编辑文章功能，请在本地环境中使用此功能。",
+                description: "编辑文章功能仅在本地环境可用，请在本地开发环境中使用此功能。",
                 variant: "destructive"
             });
             return;
