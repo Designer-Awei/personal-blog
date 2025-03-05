@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { message, history = [] } = req.body;
+    const { message, history = [], model = 'THUDM/chatglm3-6b' } = req.body;
     
     if (!message) {
       return res.status(400).json({ error: '消息不能为空' });
@@ -26,12 +26,24 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'API密钥配置错误' });
     }
     
+    // 根据模型类型确定系统提示词
+    let systemPrompt = '你是一个友好、专业的AI助手。请用中文回答用户问题，保持回复简洁明了，提供有用的信息。';
+    
+    // 根据不同模型类型设置不同的系统提示词
+    if (model.includes('chatglm3')) {
+      systemPrompt = '你是一个通用的对话助手，能够回答各种问题并提供帮助。请用中文回答用户的问题。';
+    } else if (model.includes('DeepSeek-R1')) {
+      systemPrompt = '你是一个强大的通用对话助手，能够回答各种复杂问题。请用中文回答用户的问题，提供详细、准确的信息。';
+    } else if (model.includes('Qwen2.5')) {
+      systemPrompt = '你是一个先进的对话助手，能够理解复杂的问题并提供全面的回答。请用中文回答用户的问题，保持回复清晰、专业。';
+    }
+    
     // 构建消息历史，包括当前消息
     const messages = [
       // 系统消息，定义AI助手的行为
       { 
         role: 'system', 
-        content: '你是一个友好、专业的AI助手，擅长回答用户问题并提供有用的信息。请用中文回答问题，保持回复简洁明了。' 
+        content: systemPrompt
       },
       // 添加历史消息
       ...history,
@@ -54,7 +66,7 @@ export default async function handler(req, res) {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'Qwen/Qwen2.5-7B-Instruct',
+        model: model,
         messages: messages,
         temperature: 0.7,
         top_p: 0.7,

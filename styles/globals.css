@@ -515,4 +515,19 @@ form[class*="relative z-50"] .absolute {
 }
 .dark .scrollbar-thin::-webkit-scrollbar-thumb {
   background-color: #4b5563;
+}
+
+/* 聊天室代码块样式 */
+.prose pre {
+  font-size: 0.875rem !important; /* 与正文一致的字体大小 */
+  line-height: 1.5 !important;
+}
+
+.prose code {
+  font-size: 0.875rem !important; /* 与正文一致的字体大小 */
+}
+
+/* 确保行内代码也使用相同大小 */
+.prose :not(pre) > code {
+  font-size: 0.875rem !important;
 } 

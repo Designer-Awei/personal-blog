@@ -1,15 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Send, ArrowLeft, Bot, User, Trash, StopCircle } from 'lucide-react';
+import { Send, ArrowLeft, Bot, User, Trash, StopCircle, Cpu, Trash2 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Separator } from '../components/ui/separator';
 import { toast } from '../components/ui/use-toast';
 import Layout from '../components/layout';
 import { marked } from 'marked';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue,
+  SelectGroup
+} from '../components/ui/select';
 
 // 配置marked选项，增强Markdown渲染效果
 marked.setOptions({
@@ -20,17 +30,28 @@ marked.setOptions({
 });
 
 /**
+ * 可用的AI模型列表
+ */
+const AI_MODELS = [
+  { id: 'THUDM/chatglm3-6b', name: 'ChatGLM3-6B (通用对话)', type: 'text' },
+  { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', name: 'DeepSeek-R1-Distill-Qwen-7B (通用对话)', type: 'text' },
+  { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B-Instruct (通用对话)', type: 'text' },
+];
+
+/**
  * AI聊天室页面组件
  * @returns {JSX.Element} 聊天室页面
  */
 export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: '你好！我是你的AI助手，有什么我可以帮助你的吗？' }
+    { role: 'assistant', content: '你好！我是AI助手，有什么我可以帮助你的吗？' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState(AI_MODELS[0].id);
+  const [currentModelId, setCurrentModelId] = useState(AI_MODELS[0].id); // 跟踪当前实际使用的模型
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const eventSourceRef = useRef(null);
@@ -56,175 +77,285 @@ export default function ChatPage() {
    * 停止流式输出
    */
   const stopStreaming = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    
+    // 更新状态
     setIsStreaming(false);
+    setIsLoading(false);
+    
+    // 添加中断提示到最后一条消息
+    setMessages(prev => {
+      const newMessages = [...prev];
+      if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+        // 如果消息为空，添加中断提示；如果已有内容，添加中断后缀
+        if (!newMessages[newMessages.length - 1].content) {
+          newMessages[newMessages.length - 1].content = '（生成已中断）';
+        } else if (!newMessages[newMessages.length - 1].content.includes('（生成已中断）')) {
+          newMessages[newMessages.length - 1].content += ' （生成已中断）';
+        }
+      }
+      return newMessages;
+    });
+    
+    // 显示提示
+    toast({
+      title: "生成已中断",
+      description: "AI响应生成已被用户中断",
+      variant: "default"
+    });
   };
 
   /**
-   * 处理消息发送
-   * @param {Event} e - 表单提交事件
+   * 处理模型变更
+   * @param {string} modelId - 选择的模型ID
    */
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
-    // 如果正在流式输出，先停止
+  const handleModelChange = (modelId) => {
+    // 如果正在生成，先停止
     if (isStreaming) {
       stopStreaming();
     }
+    
+    setSelectedModelId(modelId);
+    setCurrentModelId(modelId); // 更新当前使用的模型
+    
+    // 根据模型类型更新欢迎消息
+    const selectedModelInfo = AI_MODELS.find(model => model.id === modelId);
+    if (selectedModelInfo) {
+      let welcomeMessage = `你好！我是${selectedModelInfo.name}，`;
+      
+      switch (selectedModelInfo.type) {
+        case 'text':
+          welcomeMessage += '我可以回答你的问题和进行文本对话。';
+          break;
+        case 'document':
+          welcomeMessage += '我可以帮助你分析和理解文档内容。';
+          break;
+        case 'image':
+          welcomeMessage += '我可以根据你的描述生成图片。';
+          break;
+        case 'agent':
+          welcomeMessage += '我是一个高级Agent，可以执行复杂的任务和推理。';
+          break;
+        default:
+          welcomeMessage += '有什么我可以帮助你的吗？';
+      }
+      
+      // 更新欢迎消息
+      setMessages([{ role: 'assistant', content: welcomeMessage }]);
+      
+      // 显示提示
+      toast({
+        title: "模型已切换",
+        description: `已切换到 ${selectedModelInfo.name}`,
+        variant: "default"
+      });
+    }
+  };
+
+  /**
+   * 处理表单提交
+   * @param {Event} e - 表单提交事件
+   */
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!input.trim() || (isLoading && !isStreaming)) return;
 
     // 添加用户消息
     const userMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
+    
+    // 滚动到底部
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+
+    // 设置加载状态
     setIsLoading(true);
-    setIsStreaming(true);
-
-    // 创建一个新的空AI消息
-    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-    try {
-      // 准备发送给API的历史消息（不包括欢迎消息和最新的空消息）
-      const messageHistory = messages.slice(1, -1).map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
-      
-      // 创建AbortController用于取消请求
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-      
-      // 发送请求到API
-      const fetchOptions = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          message: input,
-          history: messageHistory
-        }),
-        signal
-      };
-      
-      const response = await fetch('/api/chat', fetchOptions);
-      
+    setIsStreaming(false);
+    
+    // 创建AbortController用于取消请求
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    // 获取当前选择的模型
+    const selectedModel = AI_MODELS.find(m => m.id === selectedModelId);
+    // 更新当前使用的模型ID
+    setCurrentModelId(selectedModelId);
+    
+    // 发送请求到API
+    fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: input,
+        history: messages,
+        model: selectedModelId
+      }),
+      signal: controller.signal,
+    })
+    .then(response => {
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '发送消息失败');
+        throw new Error(`HTTP error! Status: ${response.status}`);
       }
       
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
+      // 设置流式输出状态
+      setIsStreaming(true);
       
-      // 读取流数据
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        // 解码数据
-        const chunk = decoder.decode(value, { stream: false });
-        buffer += chunk;
-        
-        // 处理完整的SSE消息
-        const parts = buffer.split('\n\n');
-        buffer = parts.pop() || ''; // 保留最后一个可能不完整的消息
-        
-        for (const part of parts) {
-          if (part.trim() && part.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(part.slice(6).trim()); // 移除 'data: ' 前缀
-              
-              if (data.error) {
-                throw new Error(data.error);
+      // 添加一个空的助手消息，用于流式更新
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      
+      // 创建一个读取流的函数
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = '';
+      
+      // 设置超时处理
+      const timeoutId = setTimeout(() => {
+        if (isStreaming) {
+          stopStreaming();
+          toast({
+            title: "连接超时",
+            description: "AI响应超时，请重试或检查网络连接",
+            variant: "destructive"
+          });
+          
+          // 更新最后一条消息，提示用户
+          setMessages(prev => {
+            const newMessages = [...prev];
+            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+              if (!newMessages[newMessages.length - 1].content) {
+                newMessages[newMessages.length - 1].content = '抱歉，响应超时。请重试或检查网络连接。';
               }
-              
-              if (data.fullText) {
-                // 使用服务器发送的完整文本更新消息
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  lastMessage.content = data.fullText;
-                  return newMessages;
-                });
-              } else if (data.content && !data.fullText) {
-                // 兼容旧版API，如果没有fullText则使用content
-                setMessages(prev => {
-                  const newMessages = [...prev];
-                  const lastMessage = newMessages[newMessages.length - 1];
-                  lastMessage.content = (lastMessage.content || '') + data.content;
-                  return newMessages;
-                });
+            }
+            return newMessages;
+          });
+          
+          setIsLoading(false);
+        }
+      }, 30000); // 30秒超时
+      
+      // 读取流数据的函数
+      const readStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              clearTimeout(timeoutId);
+              setIsStreaming(false);
+              setIsLoading(false);
+              break;
+            }
+            
+            // 解码数据
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            // 处理每一行数据
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  
+                  if (data.content) {
+                    // 更新助手消息
+                    assistantMessage += data.content;
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      if (newMessages.length > 0) {
+                        newMessages[newMessages.length - 1].content = assistantMessage;
+                      }
+                      return newMessages;
+                    });
+                    
+                    // 滚动到底部
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                  
+                  if (data.done) {
+                    clearTimeout(timeoutId);
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                  }
+                  
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+                } catch (e) {
+                  console.error('解析数据出错:', e);
+                }
               }
-              
-              if (data.done) {
-                // 流结束
-                setIsStreaming(false);
-                break;
-              }
-            } catch (e) {
-              console.error('解析流数据出错:', e, part);
             }
           }
-        }
-      }
-      
-      // 处理缓冲区中剩余的数据
-      if (buffer.trim() && buffer.startsWith('data: ')) {
-        try {
-          const data = JSON.parse(buffer.slice(6).trim());
+        } catch (error) {
+          console.error('读取流出错:', error);
+          clearTimeout(timeoutId);
           
-          if (data.fullText) {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              lastMessage.content = data.fullText;
-              return newMessages;
-            });
-          } else if (data.content && !data.fullText) {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const lastMessage = newMessages[newMessages.length - 1];
-              lastMessage.content = (lastMessage.content || '') + data.content;
-              return newMessages;
-            });
-          }
-          
-          if (data.done) {
+          // 只有在仍然处于流式状态时才更新UI
+          if (isStreaming) {
             setIsStreaming(false);
+            setIsLoading(false);
+            
+            // 更新最后一条消息，提示错误
+            setMessages(prev => {
+              const newMessages = [...prev];
+              if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+                if (!newMessages[newMessages.length - 1].content) {
+                  newMessages[newMessages.length - 1].content = `抱歉，出现了错误: ${error.message}`;
+                }
+              }
+              return newMessages;
+            });
+            
+            toast({
+              title: "发生错误",
+              description: error.message,
+              variant: "destructive"
+            });
           }
-        } catch (e) {
-          console.error('解析剩余流数据出错:', e, buffer);
         }
-      }
-    } catch (error) {
-      // 检查是否是用户主动取消
-      if (error.name === 'AbortError') {
-        console.log('用户取消了请求');
-      } else {
-        console.error('Error sending message:', error);
-        toast({
-          title: '发送消息失败',
-          description: error.message || '请稍后再试',
-          variant: 'destructive',
-        });
-        
-        // 更新最后一条消息为错误消息
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const lastMessage = newMessages[newMessages.length - 1];
-          lastMessage.content = '抱歉，我遇到了一些问题，无法回答您的问题。请稍后再试。';
-          return newMessages;
-        });
-      }
-    } finally {
+      };
+      
+      // 开始读取流
+      readStream();
+    })
+    .catch(error => {
+      console.error('请求出错:', error);
       setIsLoading(false);
       setIsStreaming(false);
-      abortControllerRef.current = null;
+      
+      // 添加错误消息
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `抱歉，请求失败: ${error.message}。请检查网络连接或稍后重试。` 
+      }]);
+      
+      toast({
+        title: "请求失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    });
+  };
+
+  // 处理键盘事件，支持Ctrl+Enter换行
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      setInput(prev => prev + '\n');
+    } else if (e.key === 'Enter' && !e.ctrlKey && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
     }
   };
 
@@ -250,7 +381,8 @@ export default function ChatPage() {
       </Head>
 
       <div className="container max-w-4xl mx-auto py-6 px-4 animate-fade-in">
-        <div className="flex items-center mb-6">
+        {/* 顶部导航栏 - 仅在大屏幕显示 */}
+        <div className="hidden md:flex items-center mb-6">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -260,24 +392,92 @@ export default function ChatPage() {
             <ArrowLeft size={20} />
           </Button>
           <h1 className="text-2xl font-bold">AI聊天室</h1>
-          <Button 
-            variant="outline" 
-            onClick={clearChat}
-            className="ml-auto text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg"
-            title="清空聊天"
-          >
-            <Trash size={18} className="mr-1" />
-            清空聊天
-          </Button>
+          <div className="flex items-center ml-auto">
+            <div className="mr-4 flex items-center">
+              <Cpu size={18} className="mr-2 text-primary" />
+              <Select value={selectedModelId} onValueChange={handleModelChange}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="选择AI模型" />
+                </SelectTrigger>
+                <SelectContent>
+                  {AI_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={clearChat}
+              className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg"
+              title="清空聊天"
+            >
+              <Trash size={18} className="mr-1" />
+              清空聊天
+            </Button>
+          </div>
+        </div>
+
+        {/* 移动端标题 - 仅在小屏幕显示 */}
+        <div className="flex md:hidden items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => router.push('/')}
+              className="mr-2"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <h1 className="text-xl font-bold">AI聊天室</h1>
+          </div>
         </div>
 
         <Card className="border-2">
-          <CardHeader className="bg-muted/50 pb-2">
-            <div className="flex items-center">
-              <div className="h-8 w-8 mr-2 rounded-full bg-primary/20 flex items-center justify-center">
-                <Bot size={16} className="text-primary" />
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center">
+                {/* 在大屏幕隐藏返回按钮，因为顶部已有 */}
+                <Button variant="ghost" size="icon" asChild className="md:hidden mr-2">
+                  <Link href="/">
+                    <ArrowLeft size={16} />
+                  </Link>
+                </Button>
+                <div className="h-8 w-8 mr-2 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Bot size={16} className="text-primary" />
+                </div>
+                <CardTitle className="text-lg">智能助手</CardTitle>
               </div>
-              <CardTitle className="text-lg">智能助手</CardTitle>
+              
+              {/* 在小屏幕显示模型选择和清空按钮，大屏幕隐藏 */}
+              <div className="flex md:hidden items-center gap-2 ml-auto">
+                <Select value={selectedModelId} onValueChange={handleModelChange}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectValue placeholder="选择模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {AI_MODELS.map((model) => (
+                        <SelectItem key={model.id} value={model.id} className="text-xs">
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={clearChat}
+                  className="h-8 text-xs"
+                  title="清空聊天"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-4">
@@ -307,7 +507,7 @@ export default function ChatPage() {
                         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                       ) : (
                         <div 
-                          className="text-sm prose dark:prose-invert prose-sm max-w-none"
+                          className="text-sm prose dark:prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: marked(message.content) }}
                         />
                       )}
@@ -342,24 +542,31 @@ export default function ChatPage() {
           <Separator />
           <CardFooter className="p-4">
             <form onSubmit={handleSubmit} className="flex w-full gap-2">
-              <Input
-                placeholder="输入你的问题..."
+              <Textarea
+                placeholder="输入你的问题... (Ctrl+Enter换行)"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
                 disabled={isLoading && !isStreaming}
-                className="flex-1"
+                className="flex-1 min-h-[40px]"
+                maxRows={5}
               />
               {isStreaming ? (
                 <Button 
                   type="button" 
                   onClick={stopStreaming}
                   variant="destructive"
+                  className="shrink-0"
                 >
                   <StopCircle size={16} className="mr-2" />
                   停止
                 </Button>
               ) : (
-                <Button type="submit" disabled={isLoading || !input.trim()}>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || !input.trim()}
+                  className="shrink-0"
+                >
                   <Send size={16} className="mr-2" />
                   发送
                 </Button>
