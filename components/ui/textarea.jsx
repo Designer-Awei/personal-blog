@@ -6,7 +6,7 @@ import { cn } from "../../lib/utils"
  * @param {object} props - 组件属性
  * @returns {React.ReactElement} 文本区域组件
  */
-const Textarea = React.forwardRef(({ className, maxRows = 5, ...props }, ref) => {
+const Textarea = React.forwardRef(({ className, maxRows = 3, style, placeholder, ...props }, ref) => {
   const textareaRef = React.useRef(null)
   const combinedRef = useCombinedRefs(ref, textareaRef)
   
@@ -15,19 +15,27 @@ const Textarea = React.forwardRef(({ className, maxRows = 5, ...props }, ref) =>
     const textarea = textareaRef.current
     if (!textarea) return
     
+    // 如果没有内容，使用固定高度
+    if (!textarea.value.trim()) {
+      textarea.style.height = style?.height || '40px'
+      textarea.style.overflowY = 'hidden'
+      return
+    }
+    
     // 重置高度以获取正确的scrollHeight
     textarea.style.height = 'auto'
     
     // 计算新高度，但不超过maxRows行
-    const lineHeight = parseInt(getComputedStyle(textarea).lineHeight)
+    const lineHeight = parseInt(getComputedStyle(textarea).lineHeight) || 20
     const maxHeight = lineHeight * maxRows
     const newHeight = Math.min(textarea.scrollHeight, maxHeight)
     
+    // 设置新高度，确保底部与按钮对齐
     textarea.style.height = `${newHeight}px`
     
     // 如果内容超出maxRows，显示滚动条
     textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
-  }, [maxRows])
+  }, [maxRows, style])
   
   // 监听输入变化，调整高度
   React.useEffect(() => {
@@ -39,12 +47,12 @@ const Textarea = React.forwardRef(({ className, maxRows = 5, ...props }, ref) =>
     // 监听窗口大小变化，重新调整高度
     window.addEventListener('resize', adjustHeight)
     return () => window.removeEventListener('resize', adjustHeight)
-  }, [adjustHeight])
+  }, [adjustHeight, props.value, style])
   
   return (
     <textarea
       className={cn(
-        "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-y-hidden",
+        "flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-y-hidden placeholder:whitespace-nowrap placeholder:overflow-hidden placeholder:text-ellipsis z-20",
         className
       )}
       ref={combinedRef}
@@ -53,6 +61,14 @@ const Textarea = React.forwardRef(({ className, maxRows = 5, ...props }, ref) =>
         props.onChange?.(e)
       }}
       rows={1}
+      style={{
+        ...style,
+        minHeight: style?.height || '40px',
+        position: 'relative',
+        whiteSpace: 'pre-wrap',
+        wordWrap: 'break-word'
+      }}
+      placeholder={placeholder}
       {...props}
     />
   )

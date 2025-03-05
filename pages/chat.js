@@ -373,6 +373,36 @@ export default function ChatPage() {
     ]);
   };
 
+  /**
+   * 获取模型的简短显示名称
+   * @param {string} modelId - 模型ID
+   * @returns {string} 简短的模型名称
+   */
+  const getModelDisplayName = (modelId) => {
+    const model = AI_MODELS.find(m => m.id === modelId);
+    if (!model) return '输入消息...';
+    
+    // 从模型名称中提取简短名称
+    const fullName = model.name.split(' ')[0]; // 取第一部分，去掉括号里的描述
+    
+    // 处理不同类型的模型名称格式
+    if (fullName.includes('ChatGLM')) {
+      return 'ChatGLM3-6B';
+    } else if (fullName.includes('DeepSeek')) {
+      return 'DeepSeek-R1';
+    } else if (fullName.includes('Qwen')) {
+      return 'Qwen2.5-7B';
+    }
+    
+    // 如果是其他模型，尝试提取前两个部分
+    const parts = fullName.split('-');
+    if (parts.length >= 2) {
+      return `${parts[0]}-${parts[1]}`;
+    }
+    
+    return fullName;
+  };
+
   return (
     <Layout>
       <Head>
@@ -431,7 +461,7 @@ export default function ChatPage() {
             >
               <ArrowLeft size={20} />
             </Button>
-            <h1 className="text-xl font-bold">AI聊天室</h1>
+            <h1 className="text-lg font-bold">AI聊天室</h1>
           </div>
         </div>
 
@@ -439,22 +469,14 @@ export default function ChatPage() {
           <CardHeader className="p-4 border-b">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center">
-                {/* 在大屏幕隐藏返回按钮，因为顶部已有 */}
-                <Button variant="ghost" size="icon" asChild className="md:hidden mr-2">
-                  <Link href="/">
-                    <ArrowLeft size={16} />
-                  </Link>
-                </Button>
-                <div className="h-8 w-8 mr-2 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Bot size={16} className="text-primary" />
-                </div>
-                <CardTitle className="text-lg">智能助手</CardTitle>
+                {/* 移除机器人图标，替换标题为Robot */}
+                <CardTitle className="text-lg whitespace-nowrap">Robot</CardTitle>
               </div>
               
               {/* 在小屏幕显示模型选择和清空按钮，大屏幕隐藏 */}
-              <div className="flex md:hidden items-center gap-2 ml-auto">
+              <div className="flex md:hidden items-center gap-1 ml-auto">
                 <Select value={selectedModelId} onValueChange={handleModelChange}>
-                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectTrigger className="w-[100px] h-8 text-xs">
                     <SelectValue placeholder="选择模型" />
                   </SelectTrigger>
                   <SelectContent>
@@ -472,7 +494,7 @@ export default function ChatPage() {
                   variant="outline" 
                   size="sm"
                   onClick={clearChat}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs ml-1"
                   title="清空聊天"
                 >
                   <Trash2 size={14} />
@@ -541,22 +563,26 @@ export default function ChatPage() {
           </CardContent>
           <Separator />
           <CardFooter className="p-4">
-            <form onSubmit={handleSubmit} className="flex w-full gap-2">
+            <form onSubmit={handleSubmit} className="flex w-full gap-2 relative">
               <Textarea
-                placeholder="输入你的问题... (Ctrl+Enter换行)"
+                placeholder={getModelDisplayName(selectedModelId)}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isLoading && !isStreaming}
-                className="flex-1 min-h-[40px]"
-                maxRows={5}
+                className="flex-1 min-h-[40px] z-20 overflow-x-hidden text-ellipsis"
+                maxRows={3}
+                style={{
+                  height: input ? 'auto' : '40px',
+                  alignSelf: 'flex-end'
+                }}
               />
               {isStreaming ? (
                 <Button 
                   type="button" 
                   onClick={stopStreaming}
                   variant="destructive"
-                  className="shrink-0"
+                  className="shrink-0 h-[40px] self-end"
                 >
                   <StopCircle size={16} className="mr-2" />
                   停止
@@ -565,7 +591,7 @@ export default function ChatPage() {
                 <Button 
                   type="submit" 
                   disabled={isLoading || !input.trim()}
-                  className="shrink-0"
+                  className="shrink-0 h-[40px] self-end"
                 >
                   <Send size={16} className="mr-2" />
                   发送
