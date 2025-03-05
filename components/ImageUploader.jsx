@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import ReactCrop from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 
-export default function ImageUploader({ onImageUpdate, currentImage }) {
+export default function ImageUploader({ onUpdate, initialImage }) {
   const [previewImage, setPreviewImage] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [src, setSrc] = useState(null);
@@ -84,7 +84,7 @@ export default function ImageUploader({ onImageUpdate, currentImage }) {
 
     const canvas = previewCanvasRef.current;
     const dataUrl = canvas.toDataURL('image/jpeg');
-    onImageUpdate(dataUrl);
+    onUpdate(dataUrl);
     setPreviewImage(dataUrl);
     setShowModal(false);
     setSrc(null);
@@ -103,9 +103,9 @@ export default function ImageUploader({ onImageUpdate, currentImage }) {
         <div 
           className="w-32 h-32 rounded-full bg-gray-300 dark:bg-gray-700 mb-4 flex items-center justify-center text-gray-500 dark:text-gray-400 overflow-hidden"
         >
-          {currentImage ? (
+          {initialImage ? (
             <img 
-              src={currentImage} 
+              src={initialImage} 
               alt="个人头像" 
               className="w-full h-full object-cover"
             />

@@ -855,22 +855,15 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
           <CardContent>
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">索引分类</h3>
+                <h3 className="text-lg font-medium truncate">索引分类</h3>
                 <div className="flex gap-2">
                   <Button 
                     onClick={() => setIsAddingCategory(true)} 
-                    className="w-full flex items-center justify-center gap-2"
+                    className="flex items-center justify-center gap-1 px-2 sm:px-3"
                   >
                     <Plus size={16} />
-                    <span>添加新分类</span>
-                  </Button>
-                  <Button 
-                    onClick={() => handleOpenAddLink()} 
-                    variant="outline"
-                    className="flex items-center justify-center gap-2"
-                  >
-                    <Plus size={16} />
-                    <span>添加新索引</span>
+                    <span className="hidden sm:inline">添加新分类</span>
+                    <span className="sm:hidden">添加</span>
                   </Button>
                 </div>
               </div>
@@ -928,7 +921,7 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                           </div>
                         ) : (
                           <>
-                            <CardTitle className="text-lg">{category.name}</CardTitle>
+                            <CardTitle className="text-lg truncate">{category.name}</CardTitle>
                             <div className="flex items-center gap-1">
                               <Button 
                                 variant="ghost" 
@@ -936,8 +929,8 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                                 className="h-8 px-2 text-muted-foreground"
                                 onClick={() => handleOpenAddLink(category.id)}
                               >
-                                <Plus size={16} className="mr-1" />
-                                <span>添加</span>
+                                <Plus size={16} className="mr-1 sm:mr-1" />
+                                <span className="hidden sm:inline">添加新索引</span>
                               </Button>
                               <Button 
                                 variant="ghost" 
@@ -945,17 +938,17 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                                 className="h-8 px-2 text-muted-foreground"
                                 onClick={() => handleEditCategory(category.id)}
                               >
-                                <Edit size={16} className="mr-1" />
-                                <span>编辑</span>
+                                <Edit size={16} className="mr-1 sm:mr-1" />
+                                <span className="hidden sm:inline">编辑</span>
                               </Button>
                               <Button 
                                 variant="ghost" 
                                 size="sm" 
-                                className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                                className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                 onClick={() => handleDeleteCategory(category.id)}
                               >
-                                <Trash2 size={16} className="mr-1" />
-                                <span>删除</span>
+                                <Trash2 size={16} className="mr-1 sm:mr-1" />
+                                <span className="hidden sm:inline">删除</span>
                               </Button>
                             </div>
                           </>
@@ -1085,15 +1078,15 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
               <Card className="mb-6">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-center">
-                    <CardTitle className="text-xl">未分类链接</CardTitle>
+                    <CardTitle className="text-xl truncate">未分类链接</CardTitle>
                     <Button 
                       variant="ghost" 
                       size="sm" 
                       className="h-8 px-2 text-muted-foreground"
                       onClick={() => handleOpenAddLink()}
                     >
-                      <Plus size={16} className="mr-1" />
-                      <span>添加</span>
+                      <Plus size={16} className="mr-1 sm:mr-1" />
+                      <span className="hidden sm:inline">添加新索引</span>
                     </Button>
                   </div>
                 </CardHeader>

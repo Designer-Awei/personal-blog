@@ -5,11 +5,12 @@ import Layout from '../components/layout';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Heart, Star, ArrowLeft, Calendar, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Heart, Star, ArrowLeft, Calendar, RefreshCw, Eye, EyeOff, ExternalLink, Edit } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ProfileEditor from '../components/ProfileEditor';
 import { toast } from '../components/ui/use-toast';
 import PasswordDialog from '../components/PasswordDialog';
+import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 
 export default function Profile({ userConfig: initialUserConfig }) {
   const [userConfig, setUserConfig] = useState(initialUserConfig);
@@ -151,7 +152,7 @@ export default function Profile({ userConfig: initialUserConfig }) {
     return () => {
       router.events.off('routeChangeComplete', handleRouteChange);
     };
-  }, [router]);
+  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -197,6 +198,46 @@ export default function Profile({ userConfig: initialUserConfig }) {
     }
   };
 
+  /**
+   * 从用户名中获取首字母
+   * @param {string} name - 用户名
+   * @returns {string} - 用户名的首字母（最多两个字符）
+   */
+  const getInitials = (name) => {
+    if (!name) return '用户';
+    
+    // 对于中文名，取第一个字
+    if (/[\u4e00-\u9fa5]/.test(name)) {
+      return name.charAt(0);
+    }
+    
+    // 对于英文名，取首字母
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  /**
+   * 格式化日期为易读格式
+   * @param {string|Date} date - 需要格式化的日期
+   * @returns {string} - 格式化后的日期字符串
+   */
+  const formatDate = (date) => {
+    if (!date) return '未知';
+    
+    try {
+      const dateObj = new Date(date);
+      return dateObj.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('日期格式化错误:', error);
+      return '日期格式错误';
+    }
+  };
+
   if (isEditing) {
     return (
       <Layout>
@@ -212,11 +253,18 @@ export default function Profile({ userConfig: initialUserConfig }) {
         </div>
         
         <div className="max-w-4xl mx-auto mb-6">
+          <ProfileEditor
+            userConfig={userConfig}
+            onSave={handleSaveProfile}
+            onCancel={handleCancelEdit}
+          />
+        </div>
+        
+        <div className="max-w-4xl mx-auto mb-6">
           <Card className="shadow-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-2xl">互动统计</CardTitle>
-                <CardDescription>您的点赞和收藏数据</CardDescription>
               </div>
               <Button 
                 variant="outline" 
@@ -267,7 +315,6 @@ export default function Profile({ userConfig: initialUserConfig }) {
                 <Heart className="text-red-500" size={18} />
                 仅点赞的文章 ({likedPosts.filter(post => !favoritePosts.some(fp => fp.slug === post.slug)).length})
               </CardTitle>
-              <CardDescription>您点赞但未收藏的文章</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -316,7 +363,6 @@ export default function Profile({ userConfig: initialUserConfig }) {
                 <Star className="text-yellow-500" size={18} />
                 收藏的文章 ({favoritePosts.length})
               </CardTitle>
-              <CardDescription>您收藏的所有文章</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -359,239 +405,247 @@ export default function Profile({ userConfig: initialUserConfig }) {
             </CardContent>
           </Card>
         </div>
-        
-        <ProfileEditor
-          userConfig={userConfig}
-          onSave={handleSaveProfile}
-          onCancel={handleCancelEdit}
-        />
       </Layout>
     );
   }
 
   return (
     <Layout>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-4xl mx-auto"
-      >
-        <div className="mb-4 flex justify-between items-center">
-          <Link href="/">
-            <Button variant="ghost" className="flex items-center gap-1">
-              <ArrowLeft size={16} />
-              <span>返回首页</span>
-            </Button>
-          </Link>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1"
-          >
-            <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
-            <span>刷新数据</span>
-          </Button>
-        </div>
-
-        <motion.div
-          initial={{ y: 20 }}
-          animate={{ y: 0 }}
-          transition={{ duration: 0.3 }}
+      <div className="max-w-4xl mx-auto mb-4">
+        <Button 
+          variant="ghost" 
+          className="flex items-center gap-1"
+          onClick={() => router.push('/')}
         >
-          <Card className="mb-6 shadow-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl">个人资料</CardTitle>
-                <CardDescription>查看和管理您的个人信息</CardDescription>
-              </div>
-              <Button onClick={handleEditProfile}>编辑资料</Button>
-            </CardHeader>
-            <CardContent className="grid gap-6 md:grid-cols-2">
-              <div>
-                <div className="flex flex-col items-center mb-4">
+          <ArrowLeft size={16} />
+          <span>返回首页</span>
+        </Button>
+      </div>
+      
+      <div className="max-w-4xl mx-auto mb-6">
+        <Card className="shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">个人资料</CardTitle>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleEditProfile}
+              className="flex items-center gap-1"
+            >
+              <Edit size={16} />
+              <span>编辑资料</span>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* 左侧头像和姓名部分 */}
+              <div className="flex flex-col items-center md:items-start gap-4 md:w-1/3">
+                <Avatar className="w-32 h-32 md:w-40 md:h-40">
                   {userConfig.profileImage ? (
-                    <div className="w-32 h-32 rounded-full overflow-hidden mb-4">
-                      <img 
-                        src={userConfig.profileImage} 
-                        alt={userConfig.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    <AvatarImage 
+                      src={userConfig.profileImage} 
+                      alt={userConfig.name}
+                      className="object-cover"
+                    />
                   ) : (
-                    <div className="w-32 h-32 rounded-full bg-gray-300 dark:bg-gray-700 mb-4 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                      照片
+                    <AvatarFallback className="text-2xl">{getInitials(userConfig.name)}</AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="text-center md:text-left space-y-2">
+                  <h3 className="text-2xl font-bold">{userConfig.name}</h3>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed text-justify last-line-left">{userConfig.bio || '暂无个人简介'}</p>
+                </div>
+              </div>
+              
+              {/* 右侧信息部分 */}
+              <div className="flex-1 space-y-4 md:mt-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-16">邮箱:</span>
+                    <div className="flex items-center flex-1">
+                      <span className="text-sm truncate mr-2">
+                        {isEmailVisible ? userConfig.email : '****@**.com'}
+                      </span>
+                      <button 
+                        onClick={toggleEmailVisibility} 
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                      >
+                        {isEmailVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
-                  )}
-                  <h2 className="text-xl font-bold">{userConfig.name}</h2>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{userConfig.occupation || '设计师'}</p>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-16">电话:</span>
+                    <div className="flex items-center flex-1">
+                      <span className="text-sm truncate mr-2">
+                        {isPhoneVisible ? userConfig.phone : '*** **** ****'}
+                      </span>
+                      <button 
+                        onClick={togglePhoneVisibility} 
+                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                      >
+                        {isPhoneVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm font-medium text-gray-500 dark:text-gray-400 w-16">位置:</span>
+                    <span className="text-sm">{userConfig.location || '未设置'}</span>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-3">
-                <p className="flex items-center">
-                  <strong>邮箱:</strong> 
-                  <span className="ml-1">
-                    {isEmailVisible ? userConfig.email : '****@**.com'}
-                  </span>
-                  <button 
-                    onClick={toggleEmailVisibility} 
-                    className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    {isEmailVisible ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </p>
-                <p className="flex items-center">
-                  <strong>电话:</strong> 
-                  <span className="ml-1">
-                    {isPhoneVisible ? userConfig.phone : '*** **** ****'}
-                  </span>
-                  <button 
-                    onClick={togglePhoneVisibility} 
-                    className="ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    {isPhoneVisible ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </p>
-                <p><strong>位置:</strong> {userConfig.location}</p>
-                <p><strong>技能:</strong> {userConfig.skills}</p>
-                <p className="mt-4">{userConfig.bio}</p>
-                <div className="flex space-x-4 mt-4">
-                  {userConfig.socialLinks.slice(0, 2).map((link, index) => (
-                    <a 
-                      key={index} 
-                      href={link.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      {link.name}
-                    </a>
-                  ))}
-                  {userConfig.socialLinks.length > 2 && (
-                    <Link 
-                      href="/links"
-                      className="text-blue-500 hover:text-blue-700"
-                    >
-                      索引合集
-                    </Link>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="max-w-4xl mx-auto mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 左侧：仅点赞的文章 */}
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="max-w-4xl mx-auto mb-6">
+        <Card className="shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">互动统计</CardTitle>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw size={16} className={isRefreshing ? "animate-spin" : ""} />
+              <span>刷新数据</span>
+            </Button>
+          </CardHeader>
+          <CardContent className="grid gap-6 md:grid-cols-2">
+            <Card className="bg-gray-50 dark:bg-gray-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
                   <Heart className="text-red-500" size={18} />
-                  仅点赞的文章 ({likedPosts.filter(post => !favoritePosts.some(fp => fp.slug === post.slug)).length})
+                  点赞文章
                 </CardTitle>
-                <CardDescription>您点赞但未收藏的文章</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-4">
-                    <p>加载中...</p>
-                  </div>
-                ) : likedPosts.filter(post => !favoritePosts.some(fp => fp.slug === post.slug)).length > 0 ? (
-                  <div className="space-y-4">
-                    {likedPosts
-                      .filter(post => !favoritePosts.some(fp => fp.slug === post.slug))
-                      .map(post => (
-                        <Card key={post.slug} className="card-hover-effect">
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-base">{post.title}</CardTitle>
-                            <CardDescription className="text-xs flex items-center gap-1">
-                              <Calendar size={12} />
-                              {new Date(post.date).toLocaleDateString('zh-CN')}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="pb-2">
-                            <p className="text-sm line-clamp-2">{post.excerpt}</p>
-                          </CardContent>
-                          <CardFooter className="pt-0 flex justify-between">
-                            <div className="flex items-center gap-2">
-                              <Heart className="text-red-500 fill-red-500" size={16} />
-                            </div>
-                            <Link href={`/posts/${post.slug}`}>
-                              <Button variant="outline" size="sm">阅读文章</Button>
-                            </Link>
-                          </CardFooter>
-                        </Card>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p>您没有仅点赞的文章</p>
-                  </div>
-                )}
+                <p className="text-3xl font-bold">{likeCount}</p>
               </CardContent>
             </Card>
-
-            {/* 右侧：收藏的文章（包括同时点赞的） */}
-            <Card className="shadow-md">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+            
+            <Card className="bg-gray-50 dark:bg-gray-800">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
                   <Star className="text-yellow-500" size={18} />
-                  收藏的文章 ({favoritePosts.length})
+                  收藏文章
                 </CardTitle>
-                <CardDescription>您收藏的所有文章</CardDescription>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="text-center py-4">
-                    <p>加载中...</p>
-                  </div>
-                ) : favoritePosts.length > 0 ? (
-                  <div className="space-y-4">
-                    {favoritePosts.map(post => (
-                      <Card key={post.slug} className="card-hover-effect">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">{post.title}</CardTitle>
-                          <CardDescription className="text-xs flex items-center gap-1">
-                            <Calendar size={12} />
-                            {new Date(post.date).toLocaleDateString('zh-CN')}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="pb-2">
-                          <p className="text-sm line-clamp-2">{post.excerpt}</p>
-                        </CardContent>
-                        <CardFooter className="pt-0 flex justify-between">
-                          <div className="flex items-center gap-2">
-                            <Star className="text-yellow-500 fill-yellow-500" size={16} />
-                            {likedPosts.some(lp => lp.slug === post.slug) && (
-                              <Heart className="text-red-500 fill-red-500" size={16} />
-                            )}
-                          </div>
-                          <Link href={`/posts/${post.slug}`}>
-                            <Button variant="outline" size="sm">阅读文章</Button>
-                          </Link>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4">
-                    <p>您还没有收藏任何文章</p>
-                  </div>
-                )}
+                <p className="text-3xl font-bold">{favoriteCount}</p>
               </CardContent>
             </Card>
-          </div>
-        </motion.div>
-      </motion.div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="max-w-4xl mx-auto mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 左侧：仅点赞的文章 */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="text-red-500" size={18} />
+              仅点赞的文章 ({likedPosts.filter(post => !favoritePosts.some(fp => fp.slug === post.slug)).length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-4">
+                <p>加载中...</p>
+              </div>
+            ) : likedPosts.filter(post => !favoritePosts.some(fp => fp.slug === post.slug)).length > 0 ? (
+              <div className="space-y-4">
+                {likedPosts
+                  .filter(post => !favoritePosts.some(fp => fp.slug === post.slug))
+                  .map(post => (
+                    <Card key={post.slug} className="card-hover-effect">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base">{post.title}</CardTitle>
+                        <CardDescription className="text-xs flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(post.date).toLocaleDateString('zh-CN')}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pb-2">
+                        <p className="text-sm line-clamp-2">{post.excerpt}</p>
+                      </CardContent>
+                      <CardFooter className="pt-0 flex justify-between">
+                        <div className="flex items-center gap-2">
+                          <Heart className="text-red-500 fill-red-500" size={16} />
+                        </div>
+                        <Link href={`/posts/${post.slug}`}>
+                          <Button variant="outline" size="sm">阅读文章</Button>
+                        </Link>
+                      </CardFooter>
+                    </Card>
+                  ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p>您没有仅点赞的文章</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* 密码验证对话框 */}
-      <PasswordDialog 
-        open={showPasswordDialog} 
-        onOpenChange={setShowPasswordDialog}
-        onSuccess={handlePasswordSuccess}
-        onCancel={handlePasswordCancel}
-      />
+        {/* 右侧：收藏的文章（包括同时点赞的） */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Star className="text-yellow-500" size={18} />
+              收藏的文章 ({favoritePosts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-4">
+                <p>加载中...</p>
+              </div>
+            ) : favoritePosts.length > 0 ? (
+              <div className="space-y-4">
+                {favoritePosts.map(post => (
+                  <Card key={post.slug} className="card-hover-effect">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{post.title}</CardTitle>
+                      <CardDescription className="text-xs flex items-center gap-1">
+                        <Calendar size={12} />
+                        {new Date(post.date).toLocaleDateString('zh-CN')}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pb-2">
+                      <p className="text-sm line-clamp-2">{post.excerpt}</p>
+                    </CardContent>
+                    <CardFooter className="pt-0 flex justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star className="text-yellow-500 fill-yellow-500" size={16} />
+                        {likedPosts.some(lp => lp.slug === post.slug) && (
+                          <Heart className="text-red-500 fill-red-500" size={16} />
+                        )}
+                      </div>
+                      <Link href={`/posts/${post.slug}`}>
+                        <Button variant="outline" size="sm">阅读文章</Button>
+                      </Link>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p>您还没有收藏任何文章</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </Layout>
   );
 }

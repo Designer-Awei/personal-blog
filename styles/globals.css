@@ -530,4 +530,10 @@ form[class*="relative z-50"] .absolute {
 /* 确保行内代码也使用相同大小 */
 .prose :not(pre) > code {
   font-size: 0.875rem !important;
+}
+
+@layer utilities {
+  .last-line-left {
+    text-align-last: left;
+  }
 } 

@@ -541,29 +541,16 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
               </div>
             </CardContent>
             <CardFooter className="flex justify-between items-center">
-              <div className="flex space-x-4">
-                {userConfig.socialLinks.slice(0, 2).map((link, index) => (
-                  <motion.a 
-                    key={index} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:text-blue-700"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    {link.name}
-                  </motion.a>
-                ))}
-                <motion.a 
-                  href="/links" 
-                  className="text-blue-500 hover:text-blue-700"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  索引合集
-                </motion.a>
-              </div>
+  <div className="flex space-x-4">
+    <motion.a 
+      href="/links" 
+      className="text-blue-500 hover:text-blue-700"
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+    >
+      索引合集
+    </motion.a>
+  </div>
               <motion.button
                 onClick={handleGoToProfile}
                 className="flex items-center gap-1 text-gray-500 hover:text-primary transition-colors"
