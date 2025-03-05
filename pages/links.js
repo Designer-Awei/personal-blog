@@ -44,6 +44,10 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
   const [isAddingLink, setIsAddingLink] = useState(false);
   const [newLink, setNewLink] = useState({ name: '', url: '' });
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
+  
+  // 编辑链接相关状态
+  const [isEditingLink, setIsEditingLink] = useState(false);
+  const [editingLink, setEditingLink] = useState({ id: null, name: '', url: '', categoryId: null });
 
   // 检测设备类型
   const [isMobile, setIsMobile] = useState(false);
@@ -556,7 +560,14 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
 
   // 阻止链接点击
   const handleLinkClick = (e) => {
-    if (isDragging) {
+    // 检查点击事件是否来自编辑按钮
+    const target = e.target;
+    const isEditButton = target.closest('button') && 
+                         (target.closest('button').querySelector('svg[data-lucide="edit"]') || 
+                          target.closest('button').querySelector('svg.lucide-edit'));
+    
+    // 如果是编辑按钮或者正在拖动，阻止链接跳转
+    if (isDragging || isEditButton) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -669,6 +680,149 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
 
     // 关闭对话框
     handleCloseAddLink();
+  };
+
+  // 打开编辑链接对话框
+  const handleOpenEditLink = (link, categoryId) => {
+    setEditingLink({
+      id: link.id,
+      name: link.name,
+      url: link.url,
+      categoryId: categoryId
+    });
+    setIsEditingLink(true);
+  };
+
+  // 关闭编辑链接对话框
+  const handleCloseEditLink = () => {
+    setEditingLink({ id: null, name: '', url: '', categoryId: null });
+    setIsEditingLink(false);
+  };
+
+  // 处理编辑链接字段变更
+  const handleEditLinkChange = (field, value) => {
+    setEditingLink(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 保存编辑的链接
+  const handleSaveEditedLink = async () => {
+    // 验证链接信息
+    if (!editingLink.name.trim() || !editingLink.url.trim()) {
+      toast.error('链接名称和URL不能为空');
+      return;
+    }
+
+    // 如果URL不包含协议，添加https://
+    let url = editingLink.url.trim();
+    if (!/^https?:\/\//i.test(url)) {
+      url = `https://${url}`;
+    }
+
+    // 更新后的链接对象
+    const updatedLink = {
+      id: editingLink.id,
+      name: editingLink.name.trim(),
+      url: url
+    };
+
+    // 根据链接所在位置更新
+    if (editingLink.categoryId === 'uncategorized') {
+      // 更新未分类链接
+      const updatedUncategorized = uncategorizedLinks.map(link => 
+        link.id === editingLink.id ? updatedLink : link
+      );
+      
+      setUncategorizedLinks(updatedUncategorized);
+      
+      // 更新配置
+      const newConfig = {
+        ...userConfig,
+        socialLinks: updatedUncategorized
+      };
+      
+      const saved = await saveConfig(newConfig);
+      if (saved) {
+        toast.success('链接已更新');
+      }
+    } else {
+      // 更新分类中的链接
+      const updatedCategories = categories.map(cat => {
+        if (cat.id === editingLink.categoryId) {
+          return {
+            ...cat,
+            links: cat.links.map(link => 
+              link.id === editingLink.id ? updatedLink : link
+            )
+          };
+        }
+        return cat;
+      });
+      
+      setCategories(updatedCategories);
+      
+      // 更新配置
+      const newConfig = {
+        ...userConfig,
+        linkCategories: updatedCategories
+      };
+      
+      const saved = await saveConfig(newConfig);
+      if (saved) {
+        toast.success('链接已更新');
+      }
+    }
+
+    // 关闭对话框
+    handleCloseEditLink();
+  };
+
+  // 删除链接
+  const handleDeleteLink = async (linkId, categoryId) => {
+    // 显示确认对话框
+    if (!window.confirm('确定要删除此链接吗？')) {
+      return;
+    }
+
+    if (categoryId === 'uncategorized') {
+      // 从未分类链接中删除
+      const updatedUncategorized = uncategorizedLinks.filter(link => link.id !== linkId);
+      setUncategorizedLinks(updatedUncategorized);
+      
+      // 更新配置
+      const newConfig = {
+        ...userConfig,
+        socialLinks: updatedUncategorized
+      };
+      
+      const saved = await saveConfig(newConfig);
+      if (saved) {
+        toast.success('链接已删除');
+      }
+    } else {
+      // 从分类中删除
+      const updatedCategories = categories.map(cat => {
+        if (cat.id === categoryId) {
+          return {
+            ...cat,
+            links: cat.links.filter(link => link.id !== linkId)
+          };
+        }
+        return cat;
+      });
+      
+      setCategories(updatedCategories);
+      
+      // 更新配置
+      const newConfig = {
+        ...userConfig,
+        linkCategories: updatedCategories
+      };
+      
+      const saved = await saveConfig(newConfig);
+      if (saved) {
+        toast.success('链接已删除');
+      }
+    }
   };
 
   if (!mounted) {
@@ -865,7 +1019,7 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                                     ${isDragging && draggedItem?.id === link.id ? 'opacity-50 scale-105 shadow-lg' : ''}
                                     ${dragOverCategory === category.id && dragOverIndex === index ? 'border-l-4 border-l-blue-500' : ''}
                                     ${dragOverCategory === category.id && dragOverIndex === index + 1 ? 'border-r-4 border-r-blue-500' : ''}
-                                    cursor-move relative
+                                    cursor-move relative group
                                   `}
                                   whileHover={{ scale: 1.02, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
                                   whileTap={{ scale: 0.98 }}
@@ -880,13 +1034,31 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                                 >
                                   <h3 className="font-medium truncate w-full">{link.name}</h3>
                                   <ExternalLink size={16} className="text-gray-400 mt-2" />
-                                  <a 
-                                    href={link.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="absolute inset-0 z-10 opacity-0"
-                                    onClick={handleLinkClick}
-                                  />
+                                  
+                                  {/* 编辑按钮 */}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6 p-1 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 transition-opacity z-20"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleOpenEditLink(link, category.id);
+                                    }}
+                                  >
+                                    <Edit size={12} />
+                                  </Button>
+                                  
+                                  {/* 使用div包装链接，确保编辑按钮可以正常点击 */}
+                                  <div className="absolute inset-0 z-10">
+                                    <a 
+                                      href={link.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="absolute inset-0 opacity-0"
+                                      onClick={handleLinkClick}
+                                    />
+                                  </div>
                                 </motion.div>
                               ))}
                               {/* 添加末尾放置区域 */}
@@ -937,7 +1109,7 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                   {uncategorizedLinks.map((link, index) => (
                     <motion.div
                       key={link.id}
-                      className={`flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isDragging && draggedItem?.id === link.id ? 'opacity-50 scale-105 shadow-lg' : ''} ${dragOverCategory === 'uncategorized' ? 'ring-2 ring-blue-500' : ''} cursor-move relative`}
+                      className={`flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isDragging && draggedItem?.id === link.id ? 'opacity-50 scale-105 shadow-lg' : ''} ${dragOverCategory === 'uncategorized' ? 'ring-2 ring-blue-500' : ''} cursor-move relative group`}
                       whileHover={{ scale: 1.02, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
                       whileTap={{ scale: 0.98 }}
                       draggable="true"
@@ -952,14 +1124,32 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                           {link.url}
                         </p>
                       </div>
-                      <ExternalLink size={16} className="text-gray-400 flex-shrink-0 ml-2" />
-                      <a 
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute inset-0 z-10 opacity-0"
-                        onClick={handleLinkClick}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100 transition-opacity z-20"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleOpenEditLink(link, 'uncategorized');
+                          }}
+                        >
+                          <Edit size={16} />
+                        </Button>
+                        <ExternalLink size={16} className="text-gray-400 flex-shrink-0" />
+                      </div>
+                      
+                      {/* 使用div包装链接，确保编辑按钮可以正常点击 */}
+                      <div className="absolute inset-0 z-10">
+                        <a 
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute inset-0 opacity-0"
+                          onClick={handleLinkClick}
+                        />
+                      </div>
                     </motion.div>
                   ))}
                 </CardContent>
@@ -1002,9 +1192,56 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex space-x-2">
               <Button variant="outline" onClick={handleCloseAddLink}>取消</Button>
               <Button onClick={handleAddLink}>添加</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* 编辑链接对话框 */}
+        <Dialog open={isEditingLink} onOpenChange={setIsEditingLink}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>编辑索引</DialogTitle>
+              <DialogDescription>
+                {editingLink.categoryId && editingLink.categoryId !== 'uncategorized'
+                  ? `编辑"${categories.find(c => c.id === editingLink.categoryId)?.name}"分类中的链接`
+                  : '编辑未分类链接'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">名称</label>
+                <Input
+                  value={editingLink.name}
+                  onChange={(e) => handleEditLinkChange('name', e.target.value)}
+                  placeholder="例如：我的博客"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">URL</label>
+                <Input
+                  value={editingLink.url}
+                  onChange={(e) => handleEditLinkChange('url', e.target.value)}
+                  placeholder="例如：https://example.com"
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex space-x-2 justify-between">
+              <Button variant="outline" onClick={handleCloseEditLink}>取消</Button>
+              <div className="flex space-x-2">
+                <Button 
+                  variant="destructive" 
+                  onClick={() => {
+                    handleDeleteLink(editingLink.id, editingLink.categoryId);
+                    handleCloseEditLink();
+                  }}
+                >
+                  删除
+                </Button>
+                <Button onClick={handleSaveEditedLink}>保存</Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

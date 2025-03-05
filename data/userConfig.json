@@ -7,9 +7,9 @@
   "bio": "热爱设计和技术，喜欢分享知识和经验。在这个博客上，我会分享我的设计心得和技术见解。",
   "socialLinks": [
     {
-      "id": "id-l5fdc0idn",
-      "name": "Vercel",
-      "url": "https://vercel.com/"
+      "id": "id-l6eyjb346",
+      "name": "Sci-Hub",
+      "url": "https://www.scihub.net.cn/"
     }
   ],
   "linkCategories": [
@@ -24,12 +24,16 @@
         {
           "name": "普象网",
           "url": "https://www.puxiang.com/"
+        },
+        {
+          "name": "矢量图库-Freepik",
+          "url": "https://www.freepik.com/"
         }
       ]
     },
     {
       "id": "ai-tools",
-      "name": "AI工具",
+      "name": "开发工具",
       "links": [
         {
           "name": "Cursor",
@@ -38,16 +42,28 @@
         {
           "name": "Trea",
           "url": "https://www.trae.ai/"
+        },
+        {
+          "name": "Vercel",
+          "url": "https://vercel.com/"
         }
       ]
     },
     {
       "id": "resources",
-      "name": "学习资源",
+      "name": "科研工具",
       "links": [
+        {
+          "name": "Sci-Hub",
+          "url": "https://www.scihub.net.cn/"
+        },
         {
           "name": "GitHub",
           "url": "https://github.com/Designer-Awei/personal-blog"
+        },
+        {
+          "name": "科研绘图-draw.io",
+          "url": "https://app.diagrams.net/"
         }
       ]
     },
