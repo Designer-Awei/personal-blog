@@ -1014,9 +1014,10 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                                     ${dragOverCategory === category.id && dragOverIndex === index + 1 ? 'border-r-4 border-r-blue-500' : ''}
                                     cursor-move relative group
                                   `}
-                                  whileHover={{ scale: 1.02, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
+                                  whileHover={{ scale: 1.02 }}
                                   whileTap={{ scale: 0.98 }}
                                   draggable="true"
+                                  initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
                                   onDragStart={(e) => handleDragStart(e, link, category.id, index)}
                                   onDragEnd={handleDragEnd}
                                   onDragOver={(e) => handleCardDragOver(e, category.id, index)}
@@ -1103,9 +1104,10 @@ export default function LinksPage({ userConfig: initialUserConfig }) {
                     <motion.div
                       key={link.id}
                       className={`flex items-center p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${isDragging && draggedItem?.id === link.id ? 'opacity-50 scale-105 shadow-lg' : ''} ${dragOverCategory === 'uncategorized' ? 'ring-2 ring-blue-500' : ''} cursor-move relative group`}
-                      whileHover={{ scale: 1.02, boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}
+                      whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       draggable="true"
+                      initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
                       onDragStart={(e) => handleDragStart(e, link, 'uncategorized', index)}
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => handleCardDragOver(e, 'uncategorized', index)}

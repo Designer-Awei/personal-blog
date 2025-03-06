@@ -38,8 +38,8 @@ export default function NotificationBar() {
       if (containerRef.current && textRef.current) {
         // 获取容器宽度（减去图标和按钮的宽度以及间距）
         const containerRect = containerRef.current.getBoundingClientRect();
-        // 假设图标和按钮加间距大约占用100px
-        setContainerWidth(containerRect.width - 100);
+        // 假设图标和按钮加间距大约占用120px
+        setContainerWidth(containerRect.width - 120);
         
         // 获取文本宽度
         const textRect = textRef.current.getBoundingClientRect();
@@ -131,13 +131,13 @@ export default function NotificationBar() {
     
     // 否则需要从右向左滚动，并在开始时停留2秒，然后平滑过渡
     return {
-      initial: { x: "0%" },
+      initial: { x: 0 },
       animate: { 
         x: [
-          "0%",                        // 开始位置（已进入可视区域）
-          "0%",                        // 保持停留
-          "-5%",                       // 轻微开始移动
-          `-${textWidth - containerWidth}px`, // 滚动到末尾
+          0,                           // 开始位置
+          0,                           // 保持停留
+          -10,                         // 轻微开始移动
+          -(textWidth - containerWidth), // 滚动到末尾
         ]
       },
       exit: { x: "-100%" },
@@ -157,49 +157,51 @@ export default function NotificationBar() {
       animate={{ height: 'auto', opacity: 1 }}
       exit={{ height: 0, opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-primary/15 dark:bg-primary/20 border-b border-primary/20 overflow-hidden shadow-sm"
+      className="bg-primary/15 dark:bg-primary/20 border-b border-primary/20 overflow-hidden shadow-sm notification-bar w-full"
     >
-      <div className="container py-2.5 flex items-center space-x-4" ref={containerRef}>
-        {/* 动态喇叭图标 */}
-        <motion.div
-          animate={{ 
-            rotate: [0, -10, 10, -10, 10, 0],
-            scale: [1, 1.1, 1, 1.1, 1]
-          }}
-          transition={{ 
-            repeat: Infinity, 
-            duration: 2,
-            repeatDelay: 3
-          }}
-          className="flex-shrink-0 text-primary"
-        >
-          <Bell size={20} className="text-primary" />
-        </motion.div>
-        
-        {/* 滚动文字容器 */}
-        <div className="flex-1 overflow-hidden relative h-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentNotification.id}
-              {...animationProps}
-              className="absolute whitespace-nowrap text-sm font-medium text-foreground dark:text-foreground"
-              ref={textRef}
-            >
-              {currentNotification.content}
-            </motion.div>
-          </AnimatePresence>
+      <div className="container mx-auto">
+        <div className="py-2 px-4 flex items-center space-x-4 notification-container" ref={containerRef}>
+          {/* 动态喇叭图标 */}
+          <motion.div
+            animate={{ 
+              rotate: [0, -10, 10, -10, 10, 0],
+              scale: [1, 1.1, 1, 1.1, 1]
+            }}
+            transition={{ 
+              repeat: Infinity, 
+              duration: 2,
+              repeatDelay: 3
+            }}
+            className="flex-shrink-0 text-primary flex items-center justify-center h-6"
+          >
+            <Bell size={18} className="text-primary" />
+          </motion.div>
+          
+          {/* 滚动文字容器 */}
+          <div className="flex-1 overflow-hidden relative h-6 flex items-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentNotification.id}
+                {...animationProps}
+                className="absolute whitespace-nowrap text-sm font-medium text-foreground dark:text-foreground notification-text leading-6"
+                ref={textRef}
+              >
+                {currentNotification.content}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          
+          {/* 关闭按钮 */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="flex-shrink-0 h-6 w-6 rounded-full hover:bg-primary/20 hover:text-primary focus:ring-0 flex items-center justify-center"
+            onClick={handleClose}
+          >
+            <X size={16} />
+            <span className="sr-only">关闭通知</span>
+          </Button>
         </div>
-        
-        {/* 关闭按钮 */}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="flex-shrink-0 h-6 w-6 rounded-full hover:bg-primary/20 hover:text-primary focus:ring-0"
-          onClick={handleClose}
-        >
-          <X size={16} />
-          <span className="sr-only">关闭通知</span>
-        </Button>
       </div>
     </motion.div>
   );

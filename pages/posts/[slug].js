@@ -421,6 +421,7 @@ export default function Post({ post, useClientFetch, slug }) {
                                 <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
+                                    initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
                                     onClick={handleLike}
                                     className={`p-2 rounded-full ${liked ? 'bg-red-100 dark:bg-red-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                 >
@@ -432,6 +433,7 @@ export default function Post({ post, useClientFetch, slug }) {
                                 <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
+                                    initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
                                     onClick={handleFavorite}
                                     className={`p-2 rounded-full ${favorited ? 'bg-yellow-100 dark:bg-yellow-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                                 >
@@ -444,6 +446,7 @@ export default function Post({ post, useClientFetch, slug }) {
                             <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
+                                initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
                                 onClick={handleShare}
                                 className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
                             >

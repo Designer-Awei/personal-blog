@@ -547,6 +547,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
       className="text-blue-500 hover:text-blue-700"
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.95 }}
+      initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
     >
       索引合集
     </motion.a>
@@ -556,6 +557,7 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
                 className="flex items-center gap-1 text-gray-500 hover:text-primary transition-colors"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                initial={{ boxShadow: "0 0 0 0 rgba(0, 0, 0, 0)" }}
               >
                 <Settings size={16} />
                 <span>个人详情</span>
@@ -753,12 +755,12 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
       {/* 悬浮的新增文章按钮 */}
       <motion.button
-        whileHover={!isVercelEnv ? { scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" } : {}}
+        whileHover={!isVercelEnv ? { scale: 1.05 } : {}}
         whileTap={!isVercelEnv ? { scale: 0.98 } : {}}
         onClick={handleCreateNewArticle}
         className={`floating-button ${isVercelEnv ? 'bg-gray-500 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'} text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto`}
         style={{ boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: 100, opacity: 0, boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
         disabled={isVercelEnv}
@@ -769,12 +771,12 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
       {/* 悬浮的AI聊天室按钮 */}
       <motion.button
-        whileHover={{ scale: 1.05, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)" }}
+        whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => router.push('/chat')}
         className="floating-button bg-primary hover:bg-primary/90 text-white rounded-full md:rounded-lg flex items-center justify-center md:justify-start md:px-4 md:gap-2 md:w-auto"
         style={{ bottom: "6rem", right: "2rem", boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
-        initial={{ y: 100, opacity: 0 }}
+        initial={{ y: 100, opacity: 0, boxShadow: "0 4px 6px -2px rgba(0, 0, 0, 0.1)" }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6, type: "spring", stiffness: 200 }}
       >
