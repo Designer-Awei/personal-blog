@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Send, ArrowLeft, Bot, User, Trash, StopCircle, Cpu, Trash2 } from 'lucide-react';
+import { Send, ArrowLeft, Bot, User, Trash, StopCircle, Cpu, Trash2, Globe } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -52,6 +52,7 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState(AI_MODELS[0].id);
   const [currentModelId, setCurrentModelId] = useState(AI_MODELS[0].id); // 跟踪当前实际使用的模型
+  const [isWebEnabled, setIsWebEnabled] = useState(false); // 联网功能状态
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const eventSourceRef = useRef(null);
@@ -403,6 +404,13 @@ export default function ChatPage() {
     return fullName;
   };
 
+  /**
+   * 切换联网功能状态
+   */
+  const toggleWebEnabled = () => {
+    setIsWebEnabled(prev => !prev);
+  };
+
   return (
     <Layout>
       <Head>
@@ -577,6 +585,15 @@ export default function ChatPage() {
                   alignSelf: 'flex-end'
                 }}
               />
+              <Button 
+                type="button" 
+                onClick={toggleWebEnabled}
+                variant={isWebEnabled ? "default" : "outline"}
+                className={`shrink-0 h-[40px] w-[40px] self-end rounded-md flex items-center justify-center p-0 ${!isWebEnabled ? 'text-gray-500 border-gray-300' : ''}`}
+                title={isWebEnabled ? "已开启联网" : "点击开启联网"}
+              >
+                <Globe size={16} />
+              </Button>
               {isStreaming ? (
                 <Button 
                   type="button" 
