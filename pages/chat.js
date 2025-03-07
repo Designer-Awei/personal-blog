@@ -410,48 +410,9 @@ export default function ChatPage() {
         <meta name="description" content="与AI助手交流，获取帮助和建议" />
       </Head>
 
-      {/* 顶部导航栏 - 仅在大屏幕显示 */}
-      <div className="hidden md:flex items-center mb-6">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => router.push('/')}
-          className="mr-2"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <h1 className="text-2xl font-bold">AI聊天室</h1>
-        <div className="flex items-center ml-auto">
-          <div className="mr-4 flex items-center">
-            <Cpu size={18} className="mr-2 text-primary" />
-            <Select value={selectedModelId} onValueChange={handleModelChange}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="选择AI模型" />
-              </SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={clearChat}
-            className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg"
-            title="清空聊天"
-          >
-            <Trash size={18} className="mr-1" />
-            清空聊天
-          </Button>
-        </div>
-      </div>
-
-      {/* 移动端标题 - 仅在小屏幕显示 */}
-      <div className="flex md:hidden items-center justify-between mb-4">
-        <div className="flex items-center">
+      <div className="container max-w-5xl mx-auto py-6 px-4 animate-fade-in">
+        {/* 顶部导航栏 - 仅在大屏幕显示 */}
+        <div className="hidden md:flex items-center mb-6">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -460,145 +421,185 @@ export default function ChatPage() {
           >
             <ArrowLeft size={20} />
           </Button>
-          <h1 className="text-lg font-bold">AI聊天室</h1>
-        </div>
-      </div>
-
-      <Card className="border-2">
-        <CardHeader className="p-4 border-b">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center">
-              {/* 移除机器人图标，替换标题为Robot */}
-              <CardTitle className="text-lg whitespace-nowrap">Robot</CardTitle>
-            </div>
-            
-            {/* 在小屏幕显示模型选择和清空按钮，大屏幕隐藏 */}
-            <div className="flex md:hidden items-center gap-1 ml-auto">
+          <h1 className="text-2xl font-bold">AI聊天室</h1>
+          <div className="flex items-center ml-auto">
+            <div className="mr-4 flex items-center">
+              <Cpu size={18} className="mr-2 text-primary" />
               <Select value={selectedModelId} onValueChange={handleModelChange}>
-                <SelectTrigger className="w-[100px] h-8 text-xs">
-                  <SelectValue placeholder="选择模型" />
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="选择AI模型" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectGroup>
-                    {AI_MODELS.map((model) => (
-                      <SelectItem key={model.id} value={model.id} className="text-xs">
-                        {model.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
+                  {AI_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={clearChat}
-                className="h-8 text-xs ml-1"
-                title="清空聊天"
-              >
-                <Trash2 size={14} />
-              </Button>
             </div>
+            <Button 
+              variant="outline" 
+              onClick={clearChat}
+              className="text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg"
+              title="清空聊天"
+            >
+              <Trash size={18} className="mr-1" />
+              清空聊天
+            </Button>
           </div>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-            {messages.map((message, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className="flex items-start gap-2 max-w-[80%]">
-                  {message.role === 'assistant' && (
-                    <div className="h-8 w-8 mt-1 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <Bot size={16} className="text-primary" />
+        </div>
+
+        {/* 移动端标题 - 仅在小屏幕显示 */}
+        <div className="flex md:hidden items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => router.push('/')}
+              className="mr-2"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <h1 className="text-lg font-bold">AI聊天室</h1>
+          </div>
+        </div>
+
+        <Card className="border-2 pl-0 ml-0">
+          <CardHeader className="p-4 border-b">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center">
+                {/* 移除机器人图标，替换标题为Robot */}
+                <CardTitle className="text-lg whitespace-nowrap">Robot</CardTitle>
+              </div>
+              
+              {/* 在小屏幕显示模型选择和清空按钮，大屏幕隐藏 */}
+              <div className="flex md:hidden items-center gap-1 ml-auto">
+                <Select value={selectedModelId} onValueChange={handleModelChange}>
+                  <SelectTrigger className="w-[100px] h-8 text-xs">
+                    <SelectValue placeholder="选择模型" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {AI_MODELS.map((model) => (
+                        <SelectItem key={model.id} value={model.id} className="text-xs">
+                          {model.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={clearChat}
+                  className="h-8 text-xs ml-1"
+                  title="清空聊天"
+                >
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className="flex items-start gap-2 max-w-[80%]">
+                    {message.role === 'assistant' && (
+                      <div className="h-8 w-8 mt-1 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                        <Bot size={16} className="text-primary" />
+                      </div>
+                    )}
+                    <div
+                      className={`rounded-lg px-4 py-2 ${
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      {message.role === 'user' ? (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <div 
+                          className="text-sm prose dark:prose-invert max-w-none"
+                          dangerouslySetInnerHTML={{ __html: marked(message.content) }}
+                        />
+                      )}
                     </div>
-                  )}
-                  <div
-                    className={`rounded-lg px-4 py-2 ${
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    {message.role === 'user' ? (
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    ) : (
-                      <div 
-                        className="text-sm prose dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: marked(message.content) }}
-                      />
+                    {message.role === 'user' && (
+                      <div className="h-8 w-8 mt-1 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                        <User size={16} />
+                      </div>
                     )}
                   </div>
-                  {message.role === 'user' && (
-                    <div className="h-8 w-8 mt-1 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-                      <User size={16} />
+                </motion.div>
+              ))}
+              {isLoading && !isStreaming && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 max-w-[80%]">
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <Bot size={16} className="text-primary" />
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-            {isLoading && !isStreaming && (
-              <div className="flex justify-start">
-                <div className="flex items-center gap-2 max-w-[80%]">
-                  <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Bot size={16} className="text-primary" />
-                  </div>
-                  <div className="bg-muted rounded-lg px-4 py-2">
-                    <div className="flex space-x-1">
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    <div className="bg-muted rounded-lg px-4 py-2">
+                      <div className="flex space-x-1">
+                        <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </CardContent>
-        <Separator />
-        <CardFooter className="p-4">
-          <form onSubmit={handleSubmit} className="flex w-full gap-2 relative">
-            <Textarea
-              placeholder={getModelDisplayName(selectedModelId)}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading && !isStreaming}
-              className="flex-1 min-h-[40px] z-20 overflow-x-hidden text-ellipsis"
-              maxRows={3}
-              style={{
-                height: input ? 'auto' : '40px',
-                alignSelf: 'flex-end'
-              }}
-            />
-            {isStreaming ? (
-              <Button 
-                type="button" 
-                onClick={stopStreaming}
-                variant="destructive"
-                className="shrink-0 h-[40px] self-end"
-              >
-                <StopCircle size={16} className="mr-2" />
-                停止
-              </Button>
-            ) : (
-              <Button 
-                type="submit" 
-                disabled={isLoading || !input.trim()}
-                className="shrink-0 h-[40px] self-end"
-              >
-                <Send size={16} className="mr-2" />
-                发送
-              </Button>
-            )}
-          </form>
-        </CardFooter>
-      </Card>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </CardContent>
+          <Separator />
+          <CardFooter className="p-4">
+            <form onSubmit={handleSubmit} className="flex w-full gap-2 relative">
+              <Textarea
+                placeholder={getModelDisplayName(selectedModelId)}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading && !isStreaming}
+                className="flex-1 min-h-[40px] z-20 overflow-x-hidden text-ellipsis"
+                maxRows={3}
+                style={{
+                  height: input ? 'auto' : '40px',
+                  alignSelf: 'flex-end'
+                }}
+              />
+              {isStreaming ? (
+                <Button 
+                  type="button" 
+                  onClick={stopStreaming}
+                  variant="destructive"
+                  className="shrink-0 h-[40px] self-end"
+                >
+                  <StopCircle size={16} className="mr-2" />
+                  停止
+                </Button>
+              ) : (
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || !input.trim()}
+                  className="shrink-0 h-[40px] w-[40px] self-end rounded-md flex items-center justify-center p-0"
+                >
+                  <Send size={16} />
+                </Button>
+              )}
+            </form>
+          </CardFooter>
+        </Card>
+      </div>
     </Layout>
   );
 } 
