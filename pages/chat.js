@@ -33,9 +33,9 @@ marked.setOptions({
  * 可用的AI模型列表
  */
 const AI_MODELS = [
-  { id: 'THUDM/chatglm3-6b', name: 'ChatGLM3-6B (通用对话)', type: 'text' },
-  { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', name: 'DeepSeek-R1-Distill-Qwen-7B (通用对话)', type: 'text' },
   { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B-Instruct (通用对话)', type: 'text' },
+  { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', name: 'DeepSeek-R1-Distill-Qwen-7B (通用对话)', type: 'text' },
+  { id: 'THUDM/chatglm3-6b', name: 'ChatGLM3-6B (通用对话)', type: 'text' },
 ];
 
 /**
