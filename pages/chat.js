@@ -200,7 +200,8 @@ export default function ChatPage() {
       body: JSON.stringify({
         message: input,
         history: messages,
-        model: selectedModelId
+        model: selectedModelId,
+        isWebEnabled: isWebEnabled // 添加联网状态
       }),
       signal: controller.signal,
     })
