@@ -52,6 +52,143 @@ function processTimeKeywords(query) {
   };
 }
 
+// 添加网站分析工具函数
+function analyzeWebsiteQuery(query) {
+  // 检查是否包含完整URL
+  const urlRegex = /https?:\/\/[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(\.[a-zA-Z]{2,})?/;
+  const urlMatch = query.match(urlRegex);
+  
+  // 检查是否包含"官网"或"网站"关键词
+  const websiteKeywords = /(.*?)(官网|网站|主页)/.exec(query);
+  
+  // 提取查询目的（网站用途、功能等）
+  const purposes = [
+    '是什么', '干什么', '功能', '介绍', '简介', '概括', '总结', '说明',
+    '内容', '信息', '详情', '特点', '特色', '服务'
+  ];
+  const purposeMatch = purposes.find(p => query.includes(p));
+
+  if (urlMatch) {
+    // 直接URL访问
+    let url = urlMatch[0];
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+    return {
+      type: 'direct_url',
+      url: url,
+      purpose: purposeMatch || '概况'
+    };
+  } else if (websiteKeywords) {
+    // 需要先搜索获取官网URL
+    return {
+      type: 'search_website',
+      keyword: websiteKeywords[1].trim(),
+      purpose: purposeMatch || '概况'
+    };
+  }
+  
+  return null;
+}
+
+// 添加网站内容爬取函数
+async function crawlWebsite(page, url, purpose) {
+  try {
+    console.log(`[网页搜索] 正在访问网站: ${url}`);
+    await page.goto(url, { 
+      waitUntil: 'networkidle0',
+      timeout: 20000 
+    });
+
+    // 等待页面主要内容加载
+    await page.waitForSelector('body');
+    
+    // 提取网站基本信息
+    const websiteInfo = await page.evaluate(() => {
+      const getMetaContent = (name) => {
+        const meta = document.querySelector(`meta[name="${name}"], meta[property="${name}"]`);
+        return meta ? meta.getAttribute('content') : '';
+      };
+
+      // 提取主要文本内容
+      const getMainContent = () => {
+        // 移除脚本、样式等
+        const elementsToRemove = ['script', 'style', 'iframe', 'noscript'];
+        elementsToRemove.forEach(tag => {
+          document.querySelectorAll(tag).forEach(el => el.remove());
+        });
+
+        // 获取主要内容区域
+        const mainContent = document.querySelector('main, article, #content, .content, #main, .main') || document.body;
+        
+        // 获取所有可见文本
+        const textNodes = [];
+        const walk = document.createTreeWalker(mainContent, NodeFilter.SHOW_TEXT);
+        let node;
+        while (node = walk.nextNode()) {
+          const text = node.textContent.trim();
+          if (text && node.parentElement.offsetParent !== null) {
+            textNodes.push(text);
+          }
+        }
+        
+        return textNodes.join(' ').replace(/\s+/g, ' ').trim();
+      };
+
+      return {
+        title: document.title,
+        description: getMetaContent('description') || getMetaContent('og:description'),
+        keywords: getMetaContent('keywords'),
+        mainContent: getMainContent(),
+        url: window.location.href
+      };
+    });
+
+    return {
+      success: true,
+      data: websiteInfo
+    };
+  } catch (error) {
+    console.error('[错误] 网站访问失败:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+// 添加官网URL搜索函数
+async function findOfficialWebsite(page, keyword) {
+  try {
+    const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(keyword + ' 官网')}`;
+    await page.goto(searchUrl, { waitUntil: 'networkidle0' });
+    await page.waitForSelector('#b_results');
+
+    const officialUrl = await page.evaluate(() => {
+      const results = Array.from(document.querySelectorAll('#b_results .b_algo'));
+      // 优先查找带有"官网"、"官方网站"等关键词的结果
+      const official = results.find(result => {
+        const title = result.querySelector('h2')?.textContent || '';
+        const snippet = result.querySelector('.b_caption p')?.textContent || '';
+        return (title + snippet).includes('官网') || 
+               (title + snippet).includes('官方网站') ||
+               (title + snippet).includes('官方主页');
+      });
+      
+      if (official) {
+        return official.querySelector('h2 a')?.href;
+      }
+      // 如果没找到明确的官网标识，返回第一个结果
+      return results[0]?.querySelector('h2 a')?.href;
+    });
+
+    return officialUrl;
+  } catch (error) {
+    console.error('[错误] 搜索官网失败:', error);
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: '只允许POST请求' });
@@ -67,6 +204,60 @@ export default async function handler(req, res) {
     console.log(`[网页搜索] 原始查询: ${query}`);
     console.log(`[网页搜索] 处理后查询: ${processedQuery}`);
     
+    // 分析是否是网站相关查询
+    const websiteAnalysis = analyzeWebsiteQuery(processedQuery);
+    
+    if (websiteAnalysis) {
+      console.log('[网页搜索] 检测到网站相关查询');
+      let puppeteer = require('puppeteer');
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--window-size=1920x1080'
+        ]
+      });
+
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.setDefaultNavigationTimeout(20000);
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
+
+      let websiteUrl;
+      if (websiteAnalysis.type === 'direct_url') {
+        websiteUrl = websiteAnalysis.url;
+      } else {
+        websiteUrl = await findOfficialWebsite(page, websiteAnalysis.keyword);
+      }
+
+      if (websiteUrl) {
+        const crawlResult = await crawlWebsite(page, websiteUrl, websiteAnalysis.purpose);
+        if (crawlResult.success) {
+          return res.status(200).json({
+            results: `网站信息概要：\n\n` +
+                    `📍 网站标题：${crawlResult.data.title}\n` +
+                    `🔍 网站描述：${crawlResult.data.description || '无描述'}\n` +
+                    `🏷️ 关键词：${crawlResult.data.keywords || '无关键词'}\n` +
+                    `📝 主要内容：${crawlResult.data.mainContent.substring(0, 1000)}...\n\n` +
+                    `🔗 网址：${crawlResult.data.url}\n` +
+                    `⏰ 抓取时间：${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`
+          });
+        } else {
+          return res.status(200).json({
+            results: `抱歉，无法访问该网站。\n原因：${crawlResult.error}\n建议：\n1. 检查网址是否正确\n2. 稍后再试\n3. 尝试使用其他浏览器直接访问`
+          });
+        }
+      } else {
+        return res.status(200).json({
+          results: '抱歉，未能找到相关网站。请检查网址或关键词是否正确。'
+        });
+      }
+    }
+
     // 更新查询内容
     query = processedQuery;
 
