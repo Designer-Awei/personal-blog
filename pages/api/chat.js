@@ -12,6 +12,79 @@ export default async function handler(req, res) {
   }
 
   try {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const memuApiKey = process.env.MEMU_API_KEY;
+    const memuBaseUrl = (process.env.MEMU_API_BASE_URL || 'https://api.memu.so').replace(/\/$/, '');
+
+    const getUserInfo = () => {
+      try {
+        const configPath = path.join(process.cwd(), 'data', 'userConfig.json');
+        const raw = fs.readFileSync(configPath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        return {
+          userId: parsed.email || parsed.name || 'blog-user',
+          userName: parsed.name || 'User',
+        };
+      } catch (e) {
+        console.warn('[MemU] 读取用户信息失败，使用默认标识', e?.message);
+        return { userId: 'blog-user', userName: 'User' };
+      }
+    };
+
+    const buildConversationText = (history, userMsg, assistantMsg) => {
+      let lines = [];
+      if (Array.isArray(history)) {
+        for (const m of history) {
+          if (!m || !m.role || !m.content) continue;
+          if (m.role === 'system') continue;
+          const prefix = m.role === 'user' ? 'User' : 'Agent';
+          lines.push(`${prefix}: ${m.content}`);
+        }
+      }
+      if (userMsg) lines.push(`User: ${userMsg}`);
+      if (assistantMsg) lines.push(`Agent: ${assistantMsg}`);
+      return lines.join('\n');
+    };
+
+    const sendMemu = async ({ history, userMessage, assistantMessage }) => {
+      try {
+        if (!memuApiKey) {
+          console.warn('[MemU] 未配置 MEMU_API_KEY，跳过记忆上报');
+          return;
+        }
+        const { userId, userName } = getUserInfo();
+        const conversationText = buildConversationText(history, userMessage, assistantMessage);
+        const payload = {
+          conversation_text: conversationText,
+          user_id: userId,
+          user_name: userName,
+          agent_id: 'blog_assistant',
+          agent_name: 'Blog Assistant',
+          session_date: new Date().toISOString(),
+        };
+        const url = `${memuBaseUrl}/api/v1/memory/memorize`;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${memuApiKey}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!resp.ok) {
+          const text = await resp.text();
+          console.error('[MemU] 记忆上报失败:', resp.status, text);
+          return;
+        }
+        const data = await resp.json();
+        const taskId = data?.task_id || data?.taskId || 'unknown';
+        console.log(`[MemU] 记忆上报成功，任务ID: ${taskId}`);
+      } catch (err) {
+        console.error('[MemU] 记忆上报异常:', err);
+      }
+    };
     let { message, history = [], model = 'THUDM/chatglm3-6b', isWebEnabled = false } = req.body;
     console.log(`\n[聊天请求] 开始处理新的聊天请求`);
     console.log(`[聊天请求] 联网功能状态: ${isWebEnabled ? '开启' : '关闭'}`);
@@ -328,6 +401,13 @@ export default async function handler(req, res) {
       console.error('读取流数据时出错:', error);
       res.write(`data: ${JSON.stringify({ error: '读取响应流失败', message: error.message })}\n\n`);
     } finally {
+      // 在响应结束后，异步上报对话到 MemU
+      // 注意：不阻塞客户端 SSE
+      const originalUserMessage = message; // 请求体中的原始用户消息
+      const finalAssistantMessage = fullText; // 模型完整回复
+      Promise.resolve().then(() =>
+        sendMemu({ history, userMessage: originalUserMessage, assistantMessage: finalAssistantMessage })
+      );
       res.end();
     }
     
