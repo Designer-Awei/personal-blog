@@ -106,6 +106,7 @@ export default async function handler(req, res) {
     let enhancedMessage = message;
     let webSearchResults = '';
     let systemPrompt = '';
+    let replyMode = 'unknown'; // 日志用：offline-basic | no-search-online | time-query | web-search | search-failed-fallback | web-error-fallback
 
     // 如果启用了联网功能，先让LLM判断是否需要搜索
     if (isWebEnabled) {
@@ -168,8 +169,10 @@ export default async function handler(req, res) {
         if (analysis.needSearch || analysis.isTimeQuery) {
           if (analysis.isTimeQuery) {
             console.log('\n[步骤2] 检测到时间查询，获取标准时间...');
+            replyMode = 'time-query';
           } else {
             console.log('\n[步骤2] 开始网页搜索...');
+            replyMode = 'web-search';
           }
           
           let searchResponse = await fetch(`${req.headers.origin}/api/web-search`, {
@@ -253,10 +256,18 @@ export default async function handler(req, res) {
 1. 告知用户搜索未果的情况
 2. 分析可能的原因
 3. 建议其他可能的搜索关键词
-4. 如果可能，基于你已有的知识提供相关信息
-注意：请在回答末尾标注"[离线回复]"，提醒用户信息可能不是最新的。`;
+4. 如果可能，基于你已有的知识提供相关信息`;
               enhancedMessage = message;
             }
+          } else {
+            // 搜索接口失败，使用回退提示词
+            const errText = await searchResponse.text().catch(() => '');
+            console.warn('[步骤2] 搜索接口失败，使用回退提示词。status=', searchResponse.status, errText);
+            systemPrompt = `你是一个专业的AI助手。我们尝试联网获取信息但失败了。请：
+1. 说明当前无法获取到实时搜索结果
+2. 基于你已有的知识尽量回答`;
+            enhancedMessage = message;
+            replyMode = 'search-failed-fallback';
           }
         } else {
           console.log('[步骤2] 无需搜索，使用本地知识回答');
@@ -264,28 +275,120 @@ export default async function handler(req, res) {
 请基于你已有的知识回答问题，遵循以下要求：
 1. 直接回答用户的问题
 2. 如果涉及事实信息，说明这是基于训练数据的认知
-3. 在回答末尾标注"[本地回复]"
-4. 如果用户追问具体或实时信息，建议使用搜索功能`;
+3. 如果用户追问具体或实时信息，建议使用搜索功能`;
           enhancedMessage = message;
+          replyMode = 'no-search-online';
         }
       } catch (error) {
         console.error('\n[错误] 处理过程出错:', error);
         systemPrompt = `你是一个专业的AI助手。在处理请求时遇到了技术问题。请：
 1. 告知用户当前无法访问实时信息
 2. 基于你已有的知识，尽可能回答问题
-3. 在回答末尾标注"[离线回复]"
-4. 建议用户稍后再试`;
+3. 建议用户稍后再试`;
+        replyMode = 'web-error-fallback';
       }
     } else {
       console.log('[提示] 联网功能未启用，使用基础提示词');
       systemPrompt = `你是一个专业的AI助手。请用中文回答用户问题，遵循以下要求：
 1. 保持回复简洁明了
 2. 如果不确定答案，请直接告知用户
-3. 在回答末尾标注"[离线回复]"
-4. 如果问题需要实时信息，建议用户启用联网功能`;
+3. 如果问题需要实时信息，建议用户启用联网功能`;
+      replyMode = 'offline-basic';
+    }
+    
+    // 在最终回答前：检索 MemU 记忆，作为系统提示的补充上下文
+    try {
+      if (memuApiKey) {
+        const { userId, userName } = getUserInfo();
+        const url = `${memuBaseUrl}/api/v1/memory/retrieve/related-memory-items`;
+
+        const attempt = async (label, payload) => {
+          console.log(`[MemU] 检索尝试(${label}):`, {
+            userId: payload.user_id,
+            agentId: payload.agent_id || '(all)',
+            topK: payload.top_k,
+            minSim: payload.min_similarity,
+            query: String(payload.query || '').slice(0, 100)
+          });
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${memuApiKey}`,
+            },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) {
+            const t = await resp.text().catch(() => '');
+            console.warn(`[MemU] (${label}) 检索失败:`, resp.status, t);
+            return { items: [], raw: null };
+          }
+          const data = await resp.json();
+          const list = (data.related_memories || data.relatedMemories || []);
+          console.log(`[MemU] (${label}) 返回字段:`, {
+            keys: Object.keys(data || {}),
+            totalFound: data.total_found || data.totalFound,
+            listLen: Array.isArray(list) ? list.length : 0,
+          });
+          const items = list.map((r) => {
+            const mem = r.memory || r;
+            const content = mem?.content || r?.content || '';
+            const category = mem?.category || r?.category || '';
+            return `- ${category ? '[' + category + '] ' : ''}${content}`;
+          }).filter(Boolean);
+          return { items, raw: data };
+        };
+
+        // 第一次尝试：限定 agent，常规阈值
+        let { items, raw } = await attempt('A:agent+0.35', {
+          user_id: userId,
+          agent_id: 'blog_assistant',
+          query: message,
+          top_k: 8,
+          min_similarity: 0.35,
+        });
+
+        // 回退1：降低阈值，扩大topK
+        if (!items.length) {
+          ({ items, raw } = await attempt('B:agent+0.10', {
+            user_id: userId,
+            agent_id: 'blog_assistant',
+            query: message,
+            top_k: 12,
+            min_similarity: 0.10,
+          }));
+        }
+
+        // 回退2：跨 agent 搜索（不传 agent_id）
+        if (!items.length) {
+          ({ items, raw } = await attempt('C:all-agents+0.10', {
+            user_id: userId,
+            query: message,
+            top_k: 12,
+            min_similarity: 0.10,
+          }));
+        }
+
+        if (items.length) {
+          let ctx = items.join('\n');
+          systemPrompt = `${systemPrompt}\n\nMEMORY CONTEXT (from MemU):\n${ctx}\n\n使用以上记忆信息进行个性化、连续性的回答；若与用户最新信息冲突，以最新信息为准。`;
+          console.log(`[MemU] 记忆检索命中，最终拼接条数=${items.length} 长度=${ctx.length}`);
+          // 额外输出完整上下文（为排查问题保留日志，避免过长导致控制台卡顿，最大 5000 字）
+          const fullCtx = items.join('\n');
+          const logged = fullCtx.length > 5000 ? (fullCtx.slice(0, 5000) + '\n...[truncated]') : fullCtx;
+          console.log('[MemU] 记忆上下文(完整):\n' + logged);
+        } else {
+          console.log('[MemU] 记忆检索仍为空（经过多轮回退）');
+        }
+      } else {
+        console.log('[MemU] 未配置 MEMU_API_KEY，跳过记忆检索');
+      }
+    } catch (e) {
+      console.warn('[MemU] 记忆检索异常:', e?.message || e);
     }
     
     console.log('\n[步骤4] 准备发送最终请求...');
+    console.log(`[模式] 最终回复模式: ${replyMode}`);
     // 构建消息历史，包括当前消息
     let messages = [
       { role: 'system', content: systemPrompt },
@@ -340,15 +443,15 @@ export default async function handler(req, res) {
           break;
         }
         
-        // 解码二进制数据
-        let chunk = decoder.decode(value, { stream: false });
+        // 解码二进制数据（stream: true 保留多字节残片，避免中文乱码）
+        let chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
         
         // 处理完整的SSE消息
-        let messages = buffer.split('\n\n');
-        buffer = messages.pop() || ''; // 保留最后一个可能不完整的消息
+        let events = buffer.split('\n\n');
+        buffer = events.pop() || ''; // 保留最后一个可能不完整的消息
         
-        for (let message of messages) {
+        for (let message of events) {
           if (message.trim() && message.startsWith('data: ') && message !== 'data: [DONE]') {
             try {
               // 提取JSON数据
@@ -375,6 +478,10 @@ export default async function handler(req, res) {
         }
       }
       
+      // 刷新解码器缓冲，避免末尾半个多字节字符造成乱码
+      const tail = decoder.decode();
+      if (tail) buffer += tail;
+
       // 处理缓冲区中剩余的数据
       if (buffer.trim() && buffer.startsWith('data: ') && buffer !== 'data: [DONE]') {
         try {
