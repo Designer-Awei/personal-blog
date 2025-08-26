@@ -192,6 +192,16 @@ export default function ChatPage() {
     e.preventDefault();
     if ((!input.trim() && !uploadedImage) || (isLoading && !isStreaming)) return;
 
+    // 验证图片大小（base64数据）
+    if (uploadedImage && uploadedImage.length > 5 * 1024 * 1024) {
+      toast({
+        title: "图片过大",
+        description: "压缩后的图片仍然过大，请选择更小的图片",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // 添加用户消息
     const userMessage = {
       role: 'user',
@@ -222,8 +232,8 @@ export default function ChatPage() {
     const selectedModel = AI_MODELS.find(m => m.id === selectedModelId);
     // 更新当前使用的模型ID
     setCurrentModelId(selectedModelId);
-    
-    // 发送请求到API
+
+    // 发送请求到API（直接传递base64数据）
     fetch('/api/chat', {
       method: 'POST',
       headers: {
@@ -233,7 +243,7 @@ export default function ChatPage() {
         message: input,
         history: messages,
         model: selectedModelId,
-        uploadedImage: uploadedImage // 添加上传的图片
+        uploadedImage: uploadedImage // 直接传递压缩后的base64数据
       }),
       signal: controller.signal,
     })
@@ -464,19 +474,44 @@ export default function ChatPage() {
         const previewUrl = URL.createObjectURL(file);
         setImagePreview(previewUrl);
 
-        // 同时转换为base64（SiliconFlow视觉模型需要base64格式）
+        // 直接压缩图片并转换为base64（SiliconFlow视觉模型需要base64格式）
         const reader = new FileReader();
         reader.onload = async (e) => {
-          const base64String = e.target.result;
-          setUploadedImage(base64String); // 存储base64数据
+          const img = new Image();
+          img.onload = () => {
+            // 创建canvas进行压缩
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
 
-          // 显示提示
-          const fileSize = (file.size / 1024 / 1024).toFixed(2);
-          toast({
-            title: "图片已准备",
-            description: `文件大小: ${fileSize}MB，已准备好使用视觉模型分析`,
-            variant: "default"
-          });
+            // 计算压缩后的尺寸（最大宽度800px，保持比例）
+            let { width, height } = img;
+            const maxWidth = 800;
+            const maxHeight = 600;
+
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // 绘制并压缩
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // 转换为base64（质量0.8）
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+            setUploadedImage(compressedBase64); // 存储压缩后的base64数据
+
+            // 图片已压缩并准备完成（不显示通知）
+          };
+
+          img.src = e.target.result;
         };
         reader.readAsDataURL(file);
 
@@ -507,11 +542,7 @@ export default function ChatPage() {
   const removeImage = () => {
     setUploadedImage(null);
     setImagePreview(null);
-    toast({
-      title: "图片已移除",
-      description: "已移除上传的图片",
-      variant: "default"
-    });
+    // 图片已移除（不显示通知）
   };
 
   /**

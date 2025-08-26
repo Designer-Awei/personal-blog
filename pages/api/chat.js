@@ -97,26 +97,11 @@ export default async function handler(req, res) {
     };
     let { message, history = [], model = 'THUDM/chatglm3-6b', uploadedImage = null } = req.body;
 
-    // 如果是图片URL，读取文件并转换为base64（SiliconFlow视觉模型需要base64格式）
+    // 直接使用前端传来的base64图片数据
     let imageBase64 = null;
-    if (uploadedImage && uploadedImage.startsWith('/uploads/')) {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const imagePath = path.join(process.cwd(), 'public', uploadedImage);
-        const imageBuffer = fs.readFileSync(imagePath);
-        const mimeType = uploadedImage.toLowerCase().endsWith('.png') ? 'image/png' :
-                        uploadedImage.toLowerCase().endsWith('.jpg') || uploadedImage.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' :
-                        'image/jpeg'; // 默认JPEG
-        imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
-        console.log('[视觉模型] 已将图片URL转换为base64格式');
-      } catch (error) {
-        console.error('[视觉模型] 读取图片文件失败:', error);
-        imageBase64 = null;
-      }
-    } else if (uploadedImage && uploadedImage.startsWith('data:image/')) {
-      // 如果已经是base64格式，直接使用
+    if (uploadedImage && uploadedImage.startsWith('data:image/')) {
       imageBase64 = uploadedImage;
+      console.log('[视觉模型] 使用前端传来的base64图片数据');
     }
 
     // 视觉模型配置
