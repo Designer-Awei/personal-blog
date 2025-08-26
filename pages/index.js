@@ -60,9 +60,9 @@ export default function Home({ posts, userConfig: initialUserConfig, categories 
 
     // 检测是否在本地环境中
     setIsVercelEnv(!isLocalEnvironment());
-    
-    // 更新电话号码
-    updatePhoneNumber();
+
+    // 移除不必要的电话号码更新调用，避免Vercel部署时的500错误
+    // updatePhoneNumber();
   }, []);
 
   // 更新电话号码
