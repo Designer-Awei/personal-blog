@@ -12,14 +12,21 @@ import { Separator } from '../components/ui/separator';
 import { toast } from '../components/ui/use-toast';
 import Layout from '../components/layout';
 import { marked } from 'marked';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
   SelectValue,
   SelectGroup
 } from '../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from '../components/ui/dialog';
 
 // 配置marked选项，增强Markdown渲染效果
 marked.setOptions({
@@ -57,6 +64,9 @@ export default function ChatPage() {
   const [currentModelId, setCurrentModelId] = useState('THUDM/GLM-4-9B-0414'); // 跟踪当前实际使用的模型
   const [uploadedImage, setUploadedImage] = useState(null); // 上传的图片文件
   const [imagePreview, setImagePreview] = useState(null); // 图片预览URL
+  const [imagePreviewModal, setImagePreviewModal] = useState(null); // 图片预览模态框的图片URL
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false); // 图片预览模态框是否打开
+  const [isImageLoading, setIsImageLoading] = useState(false); // 图片预览加载状态
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const eventSourceRef = useRef(null);
@@ -65,6 +75,28 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // 键盘事件处理
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && isImagePreviewOpen) {
+        closeImagePreview();
+      }
+    };
+
+    if (isImagePreviewOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      // 防止背景滚动
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isImagePreviewOpen]);
 
   // 组件卸载时清理资源
   useEffect(() => {
@@ -126,36 +158,24 @@ export default function ChatPage() {
     if (isStreaming) {
       stopStreaming();
     }
-    
+
+    // 保存当前的输入内容和图片
+    const currentInput = input;
+    const currentUploadedImage = uploadedImage;
+    const currentImagePreview = imagePreview;
+
     setSelectedModelId(modelId);
     setCurrentModelId(modelId); // 更新当前使用的模型
-    
-    // 根据模型类型更新欢迎消息
+
+    // 恢复输入内容和图片
+    setInput(currentInput);
+    setUploadedImage(currentUploadedImage);
+    setImagePreview(currentImagePreview);
+
+    // 根据模型类型显示提示，但不重置对话历史
     const selectedModelInfo = AI_MODELS.find(model => model.id === modelId);
     if (selectedModelInfo) {
-      let welcomeMessage = `你好！我是${selectedModelInfo.name}，`;
-      
-      switch (selectedModelInfo.type) {
-        case 'text':
-          welcomeMessage += '我可以回答你的问题和进行文本对话。';
-          break;
-        case 'document':
-          welcomeMessage += '我可以帮助你分析和理解文档内容。';
-          break;
-        case 'image':
-          welcomeMessage += '我可以根据你的描述生成图片。';
-          break;
-        case 'agent':
-          welcomeMessage += '我是一个高级Agent，可以执行复杂的任务和推理。';
-          break;
-        default:
-          welcomeMessage += '有什么我可以帮助你的吗？';
-      }
-      
-      // 更新欢迎消息
-      setMessages([{ role: 'assistant', content: welcomeMessage }]);
-      
-      // 显示提示
+      // 显示切换提示
       toast({
         title: "模型已切换",
         description: `已切换到 ${selectedModelInfo.name}`,
@@ -494,12 +514,85 @@ export default function ChatPage() {
     });
   };
 
+  /**
+   * 打开图片预览模态框
+   * @param {string} imageUrl - 图片URL
+   */
+  const openImagePreview = (imageUrl) => {
+    setIsImageLoading(true);
+    setImagePreviewModal(imageUrl);
+    setIsImagePreviewOpen(true);
+  };
+
+  /**
+   * 关闭图片预览模态框
+   */
+  const closeImagePreview = () => {
+    setIsImagePreviewOpen(false);
+    setImagePreviewModal(null);
+    setIsImageLoading(false);
+  };
+
+  /**
+   * 图片加载完成处理
+   */
+  const handleImageLoad = () => {
+    setIsImageLoading(false);
+  };
+
   return (
-    <Layout>
-      <Head>
-        <title>AI聊天室 | 个人博客</title>
-        <meta name="description" content="与AI助手交流，获取帮助和建议" />
-      </Head>
+    <>
+      {/* 图片预览模态框 */}
+      <Dialog open={isImagePreviewOpen} onOpenChange={setIsImagePreviewOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none sm:max-w-[90vw] sm:max-h-[90vh]">
+          <DialogTitle className="sr-only">图片预览</DialogTitle>
+          <DialogDescription className="sr-only">
+            点击图片或关闭按钮退出预览
+          </DialogDescription>
+          <div className="relative flex items-center justify-center min-h-[50vh] max-h-[95vh] w-full">
+            {isImageLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex space-x-1">
+                  <div className="h-4 w-4 bg-white/30 rounded-full animate-bounce"></div>
+                  <div className="h-4 w-4 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="h-4 w-4 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              </div>
+            )}
+            {imagePreviewModal && (
+              <img
+                src={imagePreviewModal}
+                alt="图片预览"
+                className={`max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300 ${
+                  isImageLoading ? 'opacity-0' : 'opacity-100'
+                }`}
+                onClick={closeImagePreview}
+                onLoad={handleImageLoad}
+                onError={() => setIsImageLoading(false)}
+                style={{ touchAction: 'none' }}
+              />
+            )}
+            <Button
+              type="button"
+              onClick={closeImagePreview}
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 h-12 w-12 rounded-full p-0 bg-red-500 hover:bg-red-600 text-white touch-manipulation sm:h-10 sm:w-10 shadow-lg"
+            >
+              <X size={24} className="sm:w-5 sm:h-5" />
+            </Button>
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/70 text-sm px-4 text-center">
+              点击图片或关闭按钮退出预览
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Layout>
+        <Head>
+          <title>AI聊天室 | 个人博客</title>
+          <meta name="description" content="与AI助手交流，获取帮助和建议" />
+        </Head>
 
       <div className="container max-w-5xl mx-auto py-6 px-4 animate-fade-in">
         {/* 顶部导航栏 - 仅在大屏幕显示 */}
@@ -622,7 +715,9 @@ export default function ChatPage() {
                             <img
                               src={message.image}
                               alt="用户上传的图片"
-                              className="max-w-[200px] max-h-[200px] rounded-lg object-cover"
+                              className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity touch-manipulation sm:max-w-[250px] sm:max-h-[250px]"
+                              onClick={() => openImagePreview(message.image)}
+                              style={{ touchAction: 'manipulation' }}
                             />
                           )}
                           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
@@ -671,7 +766,9 @@ export default function ChatPage() {
                   <img
                     src={imagePreview}
                     alt="预览图片"
-                    className="max-w-[100px] max-h-[100px] rounded-lg object-cover"
+                    className="max-w-[100px] max-h-[100px] rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity touch-manipulation"
+                    onClick={() => openImagePreview(imagePreview)}
+                    style={{ touchAction: 'manipulation' }}
                   />
                   <Button
                     type="button"
@@ -688,7 +785,7 @@ export default function ChatPage() {
                     图片已准备就绪
                   </p>
                   <p className="text-xs text-gray-500">
-                    点击发送即可使用视觉模型分析
+                    点击图片预览或发送即可使用视觉模型分析
                   </p>
                 </div>
               </div>
@@ -755,5 +852,6 @@ export default function ChatPage() {
         </Card>
       </div>
     </Layout>
+    </>
   );
 } 
