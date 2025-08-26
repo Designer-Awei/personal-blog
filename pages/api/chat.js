@@ -95,7 +95,7 @@ export default async function handler(req, res) {
         console.error('[MemU] 记忆上报异常:', err);
       }
     };
-    let { message, history = [], model = 'THUDM/chatglm3-6b', uploadedImage = null } = req.body;
+    let { message, history = [], model = 'THUDM/chatglm3-6b', uploadedImage = null, visionResult = null, step = 'direct' } = req.body;
 
     // 直接使用前端传来的base64图片数据
     let imageBase64 = null;
@@ -137,8 +137,13 @@ export default async function handler(req, res) {
 3. 如果问题需要实时信息，建议用户启用联网功能（暂未实现）
 4. 如果用户上传了图片，请仔细分析图片内容并给出相关的回答`;
 
-    // 处理上传的图片 - 使用视觉模型
-    if (imageBase64) {
+    // 根据步骤处理不同的逻辑
+    if (step === 'text-generation' && visionResult) {
+      // 第二步：基于视觉分析结果进行文本生成
+      console.log('[步骤2] 基于视觉分析结果进行文本生成');
+      enhancedMessage = `${message}\n\n基于图片分析：${visionResult}`;
+    } else if (imageBase64) {
+      // 第一步：视觉分析（如果有图片且不是第二步）
       console.log('[视觉模型] 检测到图片，启用视觉模型');
       model = VISION_MODELS.primary; // 默认使用主视觉模型
 
@@ -244,9 +249,19 @@ export default async function handler(req, res) {
     // 构建消息历史，包括当前消息
     let messages = [];
 
-    // 处理视觉模型的消息格式
-    if (imageBase64) {
-      console.log('[视觉模型] 构建视觉消息格式');
+    // 根据步骤构建不同的消息格式
+    if (step === 'text-generation') {
+      // 第二步：基于视觉分析结果的文本生成
+      console.log('[步骤2] 构建文本生成消息格式');
+
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: enhancedMessage }
+      ];
+    } else if (imageBase64) {
+      // 第一步：视觉分析
+      console.log('[视觉模型] 构建视觉分析消息格式');
 
       // 系统消息
       messages.push({ role: 'system', content: systemPrompt });

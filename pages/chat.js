@@ -12,11 +12,11 @@ import { Separator } from '../components/ui/separator';
 import { toast } from '../components/ui/use-toast';
 import Layout from '../components/layout';
 import { marked } from 'marked';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
   SelectValue,
   SelectGroup
 } from '../components/ui/select';
@@ -67,6 +67,8 @@ export default function ChatPage() {
   const [imagePreviewModal, setImagePreviewModal] = useState(null); // 图片预览模态框的图片URL
   const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false); // 图片预览模态框是否打开
   const [isImageLoading, setIsImageLoading] = useState(false); // 图片预览加载状态
+  const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false); // 视觉分析状态
+  const [visionResult, setVisionResult] = useState(null); // 视觉分析结果
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const eventSourceRef = useRef(null);
@@ -150,6 +152,355 @@ export default function ChatPage() {
   };
 
   /**
+   * 处理图片聊天（分步骤：视觉分析 -> 文本生成）
+   * @param {string} message - 用户消息
+   * @param {string} image - 图片base64数据
+   * @param {Array} history - 聊天历史
+   * @param {string} modelId - 模型ID
+   * @param {AbortController} controller - 中止控制器
+   */
+  const handleImageChat = async (message, image, history, modelId, controller) => {
+    try {
+      // 第一步：视觉分析
+      setIsVisionAnalyzing(true);
+
+      console.log('[前端] 开始视觉分析...');
+      const visionResponse = await fetch('/api/vision-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageBase64: image,
+          message: message || '请分析这张图片'
+        }),
+        signal: controller.signal,
+      });
+
+      if (!visionResponse.ok) {
+        throw new Error(`视觉分析失败: ${visionResponse.status}`);
+      }
+
+      const visionData = await visionResponse.json();
+      if (!visionData.success) {
+        throw new Error(visionData.message || '视觉分析失败');
+      }
+
+      console.log('[前端] 视觉分析完成，开始文本生成...');
+      setIsVisionAnalyzing(false);
+      setVisionResult(visionData.visionResult);
+
+      // 第二步：基于视觉分析结果进行文本生成
+      await handleTextGeneration(message, visionData.visionResult, history, modelId, controller);
+
+    } catch (error) {
+      console.error('[前端] 图片聊天出错:', error);
+      setIsVisionAnalyzing(false);
+      setIsLoading(false);
+      setIsStreaming(false);
+
+      // 添加错误消息
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `抱歉，图片分析失败: ${error.message}。请重试或检查网络连接。`
+      }]);
+
+      toast({
+        title: "图片分析失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
+   * 处理文本生成（基于视觉分析结果）
+   * @param {string} message - 用户消息
+   * @param {string} visionResult - 视觉分析结果
+   * @param {Array} history - 聊天历史
+   * @param {string} modelId - 模型ID
+   * @param {AbortController} controller - 中止控制器
+   */
+  const handleTextGeneration = async (message, visionResult, history, modelId, controller) => {
+    try {
+      // 添加一个空的助手消息，用于流式更新
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setIsStreaming(true);
+
+      const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+          message: message,
+          history: history,
+          model: modelId,
+          visionResult: visionResult,
+          step: 'text-generation'
+      }),
+      signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      // 处理流式响应
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = '';
+      
+      // 设置超时处理
+      const timeoutId = setTimeout(() => {
+        if (isStreaming) {
+          stopStreaming();
+          toast({
+            title: "连接超时",
+            description: "AI响应超时，请重试或检查网络连接",
+            variant: "destructive"
+          });
+        }
+      }, 30000); // 30秒超时
+
+      const readStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) {
+              clearTimeout(timeoutId);
+              setIsStreaming(false);
+              setIsLoading(false);
+              break;
+            }
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+
+                  if (data.content) {
+                    assistantMessage += data.content;
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      if (newMessages.length > 0) {
+                        newMessages[newMessages.length - 1].content = assistantMessage;
+                      }
+                      return newMessages;
+                    });
+
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }
+
+                  if (data.done) {
+                    clearTimeout(timeoutId);
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                  }
+
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+                } catch (e) {
+                  console.error('解析数据出错:', e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('读取流出错:', error);
+          clearTimeout(timeoutId);
+
+          if (isStreaming) {
+            setIsStreaming(false);
+            setIsLoading(false);
+
+          setMessages(prev => {
+            const newMessages = [...prev];
+            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+              if (!newMessages[newMessages.length - 1].content) {
+                  newMessages[newMessages.length - 1].content = `抱歉，出现了错误: ${error.message}`;
+              }
+            }
+            return newMessages;
+          });
+          
+            toast({
+              title: "发生错误",
+              description: error.message,
+              variant: "destructive"
+            });
+          }
+        }
+      };
+
+      await readStream();
+
+    } catch (error) {
+      console.error('文本生成请求出错:', error);
+          setIsLoading(false);
+      setIsStreaming(false);
+
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `抱歉，请求失败: ${error.message}。请检查网络连接或稍后重试。`
+      }]);
+
+      toast({
+        title: "请求失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
+   * 处理普通文本聊天
+   * @param {string} message - 用户消息
+   * @param {Array} history - 聊天历史
+   * @param {string} modelId - 模型ID
+   * @param {AbortController} controller - 中止控制器
+   */
+  const handleTextChat = async (message, history, modelId, controller) => {
+    try {
+      // 添加一个空的助手消息，用于流式更新
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setIsStreaming(true);
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message,
+          history: history,
+          model: modelId
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      // 处理流式响应
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage = '';
+
+      // 设置超时处理
+      const timeoutId = setTimeout(() => {
+        if (isStreaming) {
+          stopStreaming();
+          toast({
+            title: "连接超时",
+            description: "AI响应超时，请重试或检查网络连接",
+            variant: "destructive"
+          });
+        }
+      }, 30000);
+
+      const readStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              clearTimeout(timeoutId);
+              setIsStreaming(false);
+              setIsLoading(false);
+              break;
+            }
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  
+                  if (data.content) {
+                    assistantMessage += data.content;
+                    setMessages(prev => {
+                      const newMessages = [...prev];
+                      if (newMessages.length > 0) {
+                        newMessages[newMessages.length - 1].content = assistantMessage;
+                      }
+                      return newMessages;
+                    });
+                    
+                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  }
+                  
+                  if (data.done) {
+                    clearTimeout(timeoutId);
+                    setIsStreaming(false);
+                    setIsLoading(false);
+                  }
+                  
+                  if (data.error) {
+                    throw new Error(data.error);
+                  }
+                } catch (e) {
+                  console.error('解析数据出错:', e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('读取流出错:', error);
+          clearTimeout(timeoutId);
+          
+          if (isStreaming) {
+            setIsStreaming(false);
+            setIsLoading(false);
+            
+            setMessages(prev => {
+              const newMessages = [...prev];
+              if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+                if (!newMessages[newMessages.length - 1].content) {
+                  newMessages[newMessages.length - 1].content = `抱歉，出现了错误: ${error.message}`;
+                }
+              }
+              return newMessages;
+            });
+            
+            toast({
+              title: "发生错误",
+              description: error.message,
+              variant: "destructive"
+            });
+          }
+        }
+      };
+      
+      await readStream();
+
+    } catch (error) {
+      console.error('文本聊天请求出错:', error);
+      setIsLoading(false);
+      setIsStreaming(false);
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `抱歉，请求失败: ${error.message}。请检查网络连接或稍后重试。` 
+      }]);
+      
+      toast({
+        title: "请求失败",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
    * 处理模型变更
    * @param {string} modelId - 选择的模型ID
    */
@@ -209,12 +560,14 @@ export default function ChatPage() {
       image: uploadedImage // 使用base64数据
     };
     setMessages((prev) => [...prev, userMessage]);
-    setInput('');
 
-    // 发送消息后清除上传的图片
+    // 清除输入和图片
+    const currentInput = input;
+    const currentImage = uploadedImage;
+    setInput('');
     setUploadedImage(null);
     setImagePreview(null);
-    
+
     // 滚动到底部
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -223,173 +576,20 @@ export default function ChatPage() {
     // 设置加载状态
     setIsLoading(true);
     setIsStreaming(false);
-    
+    setVisionResult(null);
+
     // 创建AbortController用于取消请求
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    
-    // 获取当前选择的模型
-    const selectedModel = AI_MODELS.find(m => m.id === selectedModelId);
-    // 更新当前使用的模型ID
-    setCurrentModelId(selectedModelId);
 
-    // 发送请求到API（直接传递base64数据）
-    fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        message: input,
-        history: messages,
-        model: selectedModelId,
-        uploadedImage: uploadedImage // 直接传递压缩后的base64数据
-      }),
-      signal: controller.signal,
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      // 设置流式输出状态
-      setIsStreaming(true);
-      
-      // 添加一个空的助手消息，用于流式更新
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-      
-      // 创建一个读取流的函数
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = '';
-      
-      // 设置超时处理
-      const timeoutId = setTimeout(() => {
-        if (isStreaming) {
-          stopStreaming();
-          toast({
-            title: "连接超时",
-            description: "AI响应超时，请重试或检查网络连接",
-            variant: "destructive"
-          });
-          
-          // 更新最后一条消息，提示用户
-          setMessages(prev => {
-            const newMessages = [...prev];
-            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
-              if (!newMessages[newMessages.length - 1].content) {
-                newMessages[newMessages.length - 1].content = '抱歉，响应超时。请重试或检查网络连接。';
-              }
-            }
-            return newMessages;
-          });
-          
-          setIsLoading(false);
-        }
-      }, 30000); // 30秒超时
-      
-      // 读取流数据的函数
-      const readStream = async () => {
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            
-            if (done) {
-              clearTimeout(timeoutId);
-              setIsStreaming(false);
-              setIsLoading(false);
-              break;
-            }
-            
-            // 解码数据
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            
-            // 处理每一行数据
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  
-                  if (data.content) {
-                    // 更新助手消息
-                    assistantMessage += data.content;
-                    setMessages(prev => {
-                      const newMessages = [...prev];
-                      if (newMessages.length > 0) {
-                        newMessages[newMessages.length - 1].content = assistantMessage;
-                      }
-                      return newMessages;
-                    });
-                    
-                    // 滚动到底部
-                    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                  }
-                  
-                  if (data.done) {
-                    clearTimeout(timeoutId);
-                    setIsStreaming(false);
-                    setIsLoading(false);
-                  }
-                  
-                  if (data.error) {
-                    throw new Error(data.error);
-                  }
-                } catch (e) {
-                  console.error('解析数据出错:', e);
-                }
-              }
-            }
-          }
-        } catch (error) {
-          console.error('读取流出错:', error);
-          clearTimeout(timeoutId);
-          
-          // 只有在仍然处于流式状态时才更新UI
-          if (isStreaming) {
-            setIsStreaming(false);
-            setIsLoading(false);
-            
-            // 更新最后一条消息，提示错误
-            setMessages(prev => {
-              const newMessages = [...prev];
-              if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
-                if (!newMessages[newMessages.length - 1].content) {
-                  newMessages[newMessages.length - 1].content = `抱歉，出现了错误: ${error.message}`;
-                }
-              }
-              return newMessages;
-            });
-            
-            toast({
-              title: "发生错误",
-              description: error.message,
-              variant: "destructive"
-            });
-          }
-        }
-      };
-      
-      // 开始读取流
-      readStream();
-    })
-    .catch(error => {
-      console.error('请求出错:', error);
-      setIsLoading(false);
-      setIsStreaming(false);
-      
-      // 添加错误消息
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: `抱歉，请求失败: ${error.message}。请检查网络连接或稍后重试。` 
-      }]);
-      
-      toast({
-        title: "请求失败",
-        description: error.message,
-        variant: "destructive"
-      });
-    });
+    // 检查是否有图片，如果有则分步骤处理
+    if (currentImage) {
+      // 分步骤处理：先视觉分析，再文本生成
+      handleImageChat(currentInput, currentImage, messages, selectedModelId, controller);
+    } else {
+      // 普通文本对话
+      handleTextChat(currentInput, messages, selectedModelId, controller);
+    }
   };
 
   // 处理键盘事件，支持Ctrl+Enter换行
@@ -619,11 +819,11 @@ export default function ChatPage() {
         </DialogContent>
       </Dialog>
 
-      <Layout>
-        <Head>
-          <title>AI聊天室 | 个人博客</title>
-          <meta name="description" content="与AI助手交流，获取帮助和建议" />
-        </Head>
+    <Layout>
+      <Head>
+        <title>AI聊天室 | 个人博客</title>
+        <meta name="description" content="与AI助手交流，获取帮助和建议" />
+      </Head>
 
       <div className="container max-w-5xl mx-auto py-6 px-4 animate-fade-in">
         {/* 顶部导航栏 - 仅在大屏幕显示 */}
@@ -751,7 +951,7 @@ export default function ChatPage() {
                               style={{ touchAction: 'manipulation' }}
                             />
                           )}
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                         </div>
                       ) : (
                         <div 
@@ -768,7 +968,30 @@ export default function ChatPage() {
                   </div>
                 </motion.div>
               ))}
-              {isLoading && !isStreaming && (
+
+              {/* 视觉分析状态显示 */}
+              {isVisionAnalyzing && (
+                <div className="flex justify-start">
+                  <div className="flex items-center gap-2 max-w-[80%]">
+                    <div className="h-8 w-8 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                      <Bot size={16} className="text-blue-500" />
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg px-4 py-2 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2">
+                        <div className="flex space-x-1">
+                          <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce"></div>
+                          <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="h-2 w-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                        </div>
+                        <span className="text-sm text-blue-700 dark:text-blue-300">正在分析图片...</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 普通加载状态 */}
+              {isLoading && !isStreaming && !isVisionAnalyzing && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 max-w-[80%]">
                     <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -847,21 +1070,21 @@ export default function ChatPage() {
                   onChange={handleFileUpload}
                   className="hidden"
                   id="image-upload"
-                />
-                <Button
-                  type="button"
+              />
+              <Button 
+                type="button" 
                   variant="outline"
                   onClick={() => document.getElementById('image-upload').click()}
                   className={`h-[40px] w-[40px] rounded-md flex items-center justify-center p-0 ${uploadedImage ? 'bg-primary text-primary-foreground' : 'text-gray-500 border-gray-300'}`}
                   title={uploadedImage ? "已选择图片" : "上传图片"}
                 >
                   <Upload size={16} />
-                </Button>
+              </Button>
               </div>
 
               {isStreaming ? (
-                <Button
-                  type="button"
+                <Button 
+                  type="button" 
                   onClick={stopStreaming}
                   variant="destructive"
                   className="shrink-0 h-[40px] self-end"
@@ -870,9 +1093,9 @@ export default function ChatPage() {
                   停止
                 </Button>
               ) : (
-                <Button
-                  type="submit"
-                  disabled={isLoading || (!input.trim() && !uploadedImage)}
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || isVisionAnalyzing || (!input.trim() && !uploadedImage)}
                   className="shrink-0 h-[40px] w-[40px] self-end rounded-md flex items-center justify-center p-0"
                 >
                   <Send size={16} />
