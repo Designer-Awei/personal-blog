@@ -1,10 +1,20 @@
 /**
  * 处理聊天请求的API路由
  * 将用户消息发送到SiliconFlow API并返回流式响应
- * 
+ *
  * @param {object} req - HTTP请求对象
  * @param {object} res - HTTP响应对象
  */
+
+// 配置API路由以支持更大的请求体（用于图片上传）
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb', // 增加到10MB以支持图片上传
+    },
+  },
+};
+
 export default async function handler(req, res) {
   // 只允许POST请求
   if (req.method !== 'POST') {
@@ -85,14 +95,42 @@ export default async function handler(req, res) {
         console.error('[MemU] 记忆上报异常:', err);
       }
     };
-    let { message, history = [], model = 'THUDM/chatglm3-6b', isWebEnabled = false } = req.body;
+    let { message, history = [], model = 'THUDM/chatglm3-6b', uploadedImage = null } = req.body;
+
+    // 如果是图片URL，读取文件并转换为base64（SiliconFlow视觉模型需要base64格式）
+    let imageBase64 = null;
+    if (uploadedImage && uploadedImage.startsWith('/uploads/')) {
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const imagePath = path.join(process.cwd(), 'public', uploadedImage);
+        const imageBuffer = fs.readFileSync(imagePath);
+        const mimeType = uploadedImage.toLowerCase().endsWith('.png') ? 'image/png' :
+                        uploadedImage.toLowerCase().endsWith('.jpg') || uploadedImage.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' :
+                        'image/jpeg'; // 默认JPEG
+        imageBase64 = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+        console.log('[视觉模型] 已将图片URL转换为base64格式');
+      } catch (error) {
+        console.error('[视觉模型] 读取图片文件失败:', error);
+        imageBase64 = null;
+      }
+    } else if (uploadedImage && uploadedImage.startsWith('data:image/')) {
+      // 如果已经是base64格式，直接使用
+      imageBase64 = uploadedImage;
+    }
+
+    // 视觉模型配置
+    const VISION_MODELS = {
+      primary: 'THUDM/GLM-4.1V-9B-Thinking',
+      fallback: 'Pro/Qwen/Qwen2.5-VL-7B-Instruct'
+    };
     console.log(`\n[聊天请求] 开始处理新的聊天请求`);
-    console.log(`[聊天请求] 联网功能状态: ${isWebEnabled ? '开启' : '关闭'}`);
     console.log(`[聊天请求] 用户消息: ${message}`);
     console.log(`[聊天请求] 使用模型: ${model}`);
-    
-    if (!message) {
-      return res.status(400).json({ error: '消息不能为空' });
+    console.log(`[聊天请求] 上传图片: ${uploadedImage ? '是' : '否'}`);
+
+    if (!message && !imageBase64) {
+      return res.status(400).json({ error: '消息或图片不能为空' });
     }
 
     // 从环境变量获取SiliconFlow API密钥
@@ -104,196 +142,24 @@ export default async function handler(req, res) {
     }
 
     let enhancedMessage = message;
-    let webSearchResults = '';
     let systemPrompt = '';
-    let replyMode = 'unknown'; // 日志用：offline-basic | no-search-online | time-query | web-search | search-failed-fallback | web-error-fallback
+    let replyMode = 'offline-basic'; // 默认回复模式
 
-    // 如果启用了联网功能，先让LLM判断是否需要搜索
-    if (isWebEnabled) {
-      try {
-        console.log('\n[步骤1] 开始分析用户需求...');
-        // 第一步：让LLM分析问题是否需要搜索
-        let analysisResponse = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              {
-                role: 'system',
-                content: `你是一个专业的问题分析器。请分析用户问题是否需要搜索互联网获取信息。
-规则：
-1. 需要搜索的情况：
-   - 询问天气、新闻、股票等实时信息
-   - 查询特定事实或数据
-   - 需要最新信息的问题
-2. 特殊处理的情况：
-   - 标准时间查询：仅包含"北京时间"、"当前时间"、"现在时间"、"几点了"、"现在几点"等关键词时，返回 isTimeQuery: true
-   - 其他时间相关查询：包含"日出"、"日落"、"作息时间"等具体时间查询，返回 needSearch: true, isTimeQuery: false
-3. 不需要搜索的情况：
-   - 纯主观或观点性问题
-   - 基础知识或概念解释
-   - 数学运算或逻辑推理
-   - 闲聊或问候
-4. 返回格式：
-   {
-     "needSearch": true/false,
-     "isTimeQuery": true/false,
-     "reason": "简要说明原因",
-     "searchKeywords": "如果需要搜索，提供2-5个关键词，用空格分隔，否则留空"
-   }
-请以JSON格式返回结果。`
-              },
-              {
-                role: 'user',
-                content: `分析以下问题是否需要搜索：${message}`
-              }
-            ],
-            temperature: 0.1,
-            max_tokens: 150,
-            stream: false
-          })
-        });
-
-        if (!analysisResponse.ok) {
-          throw new Error('需求分析失败');
-        }
-
-        let analysisData = await analysisResponse.json();
-        let analysis = JSON.parse(analysisData.choices[0].message.content.trim());
-        console.log(`[步骤1] 分析结果:`, analysis);
-
-        if (analysis.needSearch || analysis.isTimeQuery) {
-          if (analysis.isTimeQuery) {
-            console.log('\n[步骤2] 检测到时间查询，获取标准时间...');
-            replyMode = 'time-query';
-          } else {
-            console.log('\n[步骤2] 开始网页搜索...');
-            replyMode = 'web-search';
-          }
-          
-          let searchResponse = await fetch(`${req.headers.origin}/api/web-search`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ query: analysis.isTimeQuery ? '当前北京时间' : (analysis.searchKeywords || message) })
-          });
-
-          if (searchResponse.ok) {
-            let { results } = await searchResponse.json();
-            webSearchResults = results;
-            console.log('[步骤2] 搜索完成，获取到结果');
-            console.log(`[步骤2] 搜索结果长度: ${webSearchResults.length} 字符`);
-            
-            if (webSearchResults && webSearchResults.length > 0) {
-              console.log('\n[步骤3] 构建系统提示词...');
-              
-              if (analysis.isTimeQuery) {
-                systemPrompt = `你是一个专业、严谨的AI助手。这是一个时间查询请求：
-
-1. 用户问题：${message}
-2. 查询结果：${webSearchResults}
-
-请按照以下要求回答：
-1. 直接返回时间信息，保持简洁明确
-2. 标注数据来源
-3. 如果是系统时间，提醒用户可能存在误差`;
-              } else if (webSearchResults.includes('天气')) {
-                systemPrompt = `你是一个专业的天气助手。请根据以下信息回答用户的天气查询：
-
-1. 用户问题：${message}
-2. 天气数据：${webSearchResults}
-
-回答要求：
-1. 直接展示天气信息，包括：
-   - 实时温度
-   - 天气状况
-   - 风力风向
-   - 空气质量
-   - 湿度
-   - 降水概率
-   - 紫外线强度
-2. 保持数据的准确性，不要添加或修改数据
-3. 如果某项数据缺失，直接跳过该项
-4. 在回答末尾标注数据来源和更新时间`;
-              } else {
-                systemPrompt = `你是一个专业、严谨的AI助手。请遵循以下规则分析和回答问题：
-
-1. 用户原始问题：${message}
-2. 搜索原因：${analysis.reason}
-3. 搜索关键词：${analysis.searchKeywords}
-4. 分析要求：
-   - 仔细阅读搜索结果，提取与问题相关的信息
-   - 将不同来源的信息进行对比和整合
-   - 确保信息的时效性和准确性
-   - 对于天气、新闻等实时信息，标注具体时间
-5. 回答格式：
-   - 开头：简明扼要地回答用户问题
-   - 主体：展开补充必要的详细信息
-   - 结尾：标注"数据来源："并列出所有信息来源和时间
-6. 回答要求：
-   - 直接回答用户的问题
-   - 只使用搜索结果中的真实信息，不要编造
-   - 标注所有信息的时间、来源和相关实体
-   - 如果信息可能已过时，明确提醒用户
-   - 如果搜索结果与问题相关性不高，说明原因
-7. 特殊查询处理：
-   - 天气查询：优先展示温度、天气状况、湿度、风力等关键信息
-   - 新闻查询：注重时效性，标注发布时间
-   - 数据查询：重点关注数据的准确性和来源`;
-              }
-
-              // 将搜索结果添加到用户消息中
-              enhancedMessage = `用户问题: ${message}\n\n搜索结果:\n${webSearchResults}\n\n请按照系统提示词的要求，基于以上搜索结果回答问题。`;
-              console.log('[步骤3] 系统提示词和增强消息已准备完成');
-            } else {
-              console.log('[步骤3] 搜索结果为空，使用基础提示词');
-              systemPrompt = `你是一个专业的AI助手。我们尝试搜索"${analysis.searchKeywords}"但未找到相关结果。请：
-1. 告知用户搜索未果的情况
-2. 分析可能的原因
-3. 建议其他可能的搜索关键词
-4. 如果可能，基于你已有的知识提供相关信息`;
-              enhancedMessage = message;
-            }
-          } else {
-            // 搜索接口失败，使用回退提示词
-            const errText = await searchResponse.text().catch(() => '');
-            console.warn('[步骤2] 搜索接口失败，使用回退提示词。status=', searchResponse.status, errText);
-            systemPrompt = `你是一个专业的AI助手。我们尝试联网获取信息但失败了。请：
-1. 说明当前无法获取到实时搜索结果
-2. 基于你已有的知识尽量回答`;
-            enhancedMessage = message;
-            replyMode = 'search-failed-fallback';
-          }
-        } else {
-          console.log('[步骤2] 无需搜索，使用本地知识回答');
-          systemPrompt = `你是一个专业的AI助手。这个问题不需要搜索互联网，原因是：${analysis.reason}
-请基于你已有的知识回答问题，遵循以下要求：
-1. 直接回答用户的问题
-2. 如果涉及事实信息，说明这是基于训练数据的认知
-3. 如果用户追问具体或实时信息，建议使用搜索功能`;
-          enhancedMessage = message;
-          replyMode = 'no-search-online';
-        }
-      } catch (error) {
-        console.error('\n[错误] 处理过程出错:', error);
-        systemPrompt = `你是一个专业的AI助手。在处理请求时遇到了技术问题。请：
-1. 告知用户当前无法访问实时信息
-2. 基于你已有的知识，尽可能回答问题
-3. 建议用户稍后再试`;
-        replyMode = 'web-error-fallback';
-      }
-    } else {
-      console.log('[提示] 联网功能未启用，使用基础提示词');
-      systemPrompt = `你是一个专业的AI助手。请用中文回答用户问题，遵循以下要求：
+    console.log('[提示] 使用基础提示词');
+    systemPrompt = `你是一个专业的AI助手。请用中文回答用户问题，遵循以下要求：
 1. 保持回复简洁明了
 2. 如果不确定答案，请直接告知用户
-3. 如果问题需要实时信息，建议用户启用联网功能`;
-      replyMode = 'offline-basic';
+3. 如果问题需要实时信息，建议用户启用联网功能（暂未实现）
+4. 如果用户上传了图片，请仔细分析图片内容并给出相关的回答`;
+
+    // 处理上传的图片 - 使用视觉模型
+    if (imageBase64) {
+      console.log('[视觉模型] 检测到图片，启用视觉模型');
+      model = VISION_MODELS.primary; // 默认使用主视觉模型
+
+      // 构建视觉模型的消息格式
+      enhancedMessage = message || '请分析这张图片';
+      console.log('[视觉模型] 已切换到:', model);
     }
     
     // 在最终回答前：检索 MemU 记忆，作为系统提示的补充上下文
@@ -389,12 +255,54 @@ export default async function handler(req, res) {
     
     console.log('\n[步骤4] 准备发送最终请求...');
     console.log(`[模式] 最终回复模式: ${replyMode}`);
+
     // 构建消息历史，包括当前消息
-    let messages = [
-      { role: 'system', content: systemPrompt },
-      ...history,
-      { role: 'user', content: enhancedMessage }
-    ];
+    let messages = [];
+
+    // 处理视觉模型的消息格式
+    if (imageBase64) {
+      console.log('[视觉模型] 构建视觉消息格式');
+
+      // 系统消息
+      messages.push({ role: 'system', content: systemPrompt });
+
+      // 处理历史消息（跳过包含图片的历史消息，因为流式响应可能不支持复杂格式）
+      for (let i = 0; i < history.length; i++) {
+        const histMsg = history[i];
+        if (histMsg.role === 'user' && histMsg.image) {
+          // 对于包含图片的历史消息，只保留文本内容
+          messages.push({ role: 'user', content: histMsg.content || '请分析图片' });
+        } else {
+          messages.push(histMsg);
+        }
+      }
+
+      // 当前消息 - 使用视觉模型格式
+      const userMessage = {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: enhancedMessage
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: imageBase64 // 使用base64数据
+            }
+          }
+        ]
+      };
+      messages.push(userMessage);
+
+    } else {
+      // 普通文本消息格式
+      messages = [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: enhancedMessage }
+      ];
+    }
     
     // 设置响应头，启用流式输出
     res.writeHead(200, {
@@ -404,27 +312,99 @@ export default async function handler(req, res) {
     });
 
     console.log('[步骤4] 调用SiliconFlow API获取回答...');
-    // 调用SiliconFlow API进行最终回答
-    let response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: 0.3,
-        top_p: 0.8,
-        frequency_penalty: 0.1,
-        stream: true
-      })
-    });
 
-    if (!response.ok) {
-      let errorData = await response.json();
-      console.error('[错误] SiliconFlow API错误:', errorData);
-      res.write(`data: ${JSON.stringify({ error: '调用AI服务失败', details: errorData })}\n\n`);
+    // 视觉模型主备切换逻辑
+    let response;
+    let currentModel = model;
+    let useFallback = false;
+
+    try {
+      // 第一次尝试：使用主模型
+      response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages: messages,
+          temperature: 0.3,
+          top_p: 0.8,
+          frequency_penalty: 0.1,
+          stream: true
+        })
+      });
+
+      // 如果是视觉模型且主模型失败，尝试备用模型
+      if (!response.ok && imageBase64 && currentModel === VISION_MODELS.primary) {
+        console.log('[视觉模型] 主模型调用失败，尝试备用模型...');
+        useFallback = true;
+        currentModel = VISION_MODELS.fallback;
+
+        // 重新构建消息（备用模型可能需要不同的格式）
+        const fallbackMessages = [
+          { role: 'system', content: systemPrompt },
+          ...history.map(histMsg => {
+            if (histMsg.role === 'user' && histMsg.image) {
+              return { role: 'user', content: histMsg.content || '请分析图片' };
+            }
+            return histMsg;
+          }),
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: enhancedMessage
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageBase64 // 使用base64数据
+                }
+              }
+            ]
+          }
+        ];
+
+        response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: currentModel,
+            messages: fallbackMessages,
+            temperature: 0.3,
+            top_p: 0.8,
+            frequency_penalty: 0.1,
+            stream: true
+          })
+        });
+
+        if (response.ok) {
+          console.log('[视觉模型] 备用模型调用成功');
+        }
+      }
+
+      if (!response.ok) {
+        let errorData = await response.json();
+        console.error(`[错误] SiliconFlow API错误 (模型: ${currentModel}):`, errorData);
+
+        if (useFallback) {
+          console.error('[视觉模型] 主备模型都调用失败');
+        }
+
+        res.write(`data: ${JSON.stringify({ error: '调用AI服务失败', details: errorData })}\n\n`);
+        res.end();
+        return;
+      }
+
+    } catch (error) {
+      console.error('[错误] API请求异常:', error);
+      res.write(`data: ${JSON.stringify({ error: '网络请求失败', details: error.message })}\n\n`);
       res.end();
       return;
     }

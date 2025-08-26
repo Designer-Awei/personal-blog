@@ -7,6 +7,12 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['fs', 'path'],
   },
+  // 增加API请求体大小限制以支持图片上传
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
   images: {
     domains: ['localhost'],
     unoptimized: true,

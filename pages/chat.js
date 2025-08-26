@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Send, ArrowLeft, Bot, User, Trash, StopCircle, Cpu, Trash2, Globe } from 'lucide-react';
+import { Send, ArrowLeft, Bot, User, Trash, StopCircle, Cpu, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
@@ -33,6 +33,9 @@ marked.setOptions({
  * 可用的AI模型列表
  */
 const AI_MODELS = [
+  { id: 'THUDM/GLM-4-9B-0414', name: 'GLM-4-9B-0414 (通用对话)', type: 'text' },
+  { id: 'Qwen/Qwen3-8B', name: 'Qwen3-8B (通用对话)', type: 'text' },
+  { id: 'THUDM/GLM-4.1V-9B-Thinking', name: 'GLM-4.1V-9B-Thinking (思考模型)', type: 'text' },
   { id: 'Qwen/Qwen2.5-7B-Instruct', name: 'Qwen2.5-7B-Instruct (通用对话)', type: 'text' },
   { id: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B', name: 'DeepSeek-R1-Distill-Qwen-7B (通用对话)', type: 'text' },
   { id: 'THUDM/chatglm3-6b', name: 'ChatGLM3-6B (通用对话)', type: 'text' },
@@ -50,9 +53,10 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [selectedModelId, setSelectedModelId] = useState(AI_MODELS[0].id);
-  const [currentModelId, setCurrentModelId] = useState(AI_MODELS[0].id); // 跟踪当前实际使用的模型
-  const [isWebEnabled, setIsWebEnabled] = useState(false); // 联网功能状态
+  const [selectedModelId, setSelectedModelId] = useState('THUDM/GLM-4-9B-0414');
+  const [currentModelId, setCurrentModelId] = useState('THUDM/GLM-4-9B-0414'); // 跟踪当前实际使用的模型
+  const [uploadedImage, setUploadedImage] = useState(null); // 上传的图片文件
+  const [imagePreview, setImagePreview] = useState(null); // 图片预览URL
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null);
   const eventSourceRef = useRef(null);
@@ -166,12 +170,20 @@ export default function ChatPage() {
    */
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!input.trim() || (isLoading && !isStreaming)) return;
+    if ((!input.trim() && !uploadedImage) || (isLoading && !isStreaming)) return;
 
     // 添加用户消息
-    const userMessage = { role: 'user', content: input };
+    const userMessage = {
+      role: 'user',
+      content: input,
+      image: uploadedImage // 使用base64数据
+    };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
+
+    // 发送消息后清除上传的图片
+    setUploadedImage(null);
+    setImagePreview(null);
     
     // 滚动到底部
     setTimeout(() => {
@@ -201,7 +213,7 @@ export default function ChatPage() {
         message: input,
         history: messages,
         model: selectedModelId,
-        isWebEnabled: isWebEnabled // 添加联网状态
+        uploadedImage: uploadedImage // 添加上传的图片
       }),
       signal: controller.signal,
     })
@@ -373,6 +385,10 @@ export default function ChatPage() {
     setMessages([
       { role: 'assistant', content: '聊天记录已清空。有什么我可以帮助你的吗？' }
     ]);
+
+    // 清除上传的图片
+    setUploadedImage(null);
+    setImagePreview(null);
   };
 
   /**
@@ -406,10 +422,76 @@ export default function ChatPage() {
   };
 
   /**
-   * 切换联网功能状态
+   * 处理文件上传
+   * @param {Event} e - 文件选择事件
    */
-  const toggleWebEnabled = () => {
-    setIsWebEnabled(prev => !prev);
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      // 检查文件大小（限制为10MB）
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast({
+          title: "文件过大",
+          description: "请选择小于10MB的图片文件",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      try {
+        // 显示预览
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreview(previewUrl);
+
+        // 同时转换为base64（SiliconFlow视觉模型需要base64格式）
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64String = e.target.result;
+          setUploadedImage(base64String); // 存储base64数据
+
+          // 显示提示
+          const fileSize = (file.size / 1024 / 1024).toFixed(2);
+          toast({
+            title: "图片已准备",
+            description: `文件大小: ${fileSize}MB，已准备好使用视觉模型分析`,
+            variant: "default"
+          });
+        };
+        reader.readAsDataURL(file);
+
+      } catch (error) {
+        console.error('图片处理失败:', error);
+        toast({
+          title: "图片处理失败",
+          description: "无法处理该图片，请尝试其他图片",
+          variant: "destructive"
+        });
+
+        // 清理预览
+        setImagePreview(null);
+        setUploadedImage(null);
+      }
+    } else if (file) {
+      toast({
+        title: "文件类型错误",
+        description: "请选择图片文件",
+        variant: "destructive"
+      });
+    }
+  };
+
+  /**
+   * 移除上传的图片
+   */
+  const removeImage = () => {
+    setUploadedImage(null);
+    setImagePreview(null);
+    toast({
+      title: "图片已移除",
+      description: "已移除上传的图片",
+      variant: "default"
+    });
   };
 
   return (
@@ -535,7 +617,16 @@ export default function ChatPage() {
                       }`}
                     >
                       {message.role === 'user' ? (
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <div className="space-y-2">
+                          {message.image && (
+                            <img
+                              src={message.image}
+                              alt="用户上传的图片"
+                              className="max-w-[200px] max-h-[200px] rounded-lg object-cover"
+                            />
+                          )}
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        </div>
                       ) : (
                         <div 
                           className="text-sm prose dark:prose-invert max-w-none"
@@ -571,6 +662,39 @@ export default function ChatPage() {
             </div>
           </CardContent>
           <Separator />
+
+          {/* 图片预览区域 */}
+          {imagePreview && (
+            <div className="px-4 py-2 border-b">
+              <div className="flex items-start gap-2">
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="预览图片"
+                    className="max-w-[100px] max-h-[100px] rounded-lg object-cover"
+                  />
+                  <Button
+                    type="button"
+                    onClick={removeImage}
+                    variant="destructive"
+                    size="sm"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                  >
+                    <X size={12} />
+                  </Button>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-600">
+                    图片已准备就绪
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    点击发送即可使用视觉模型分析
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <CardFooter className="p-4">
             <form onSubmit={handleSubmit} className="flex w-full gap-2 relative">
               <Textarea
@@ -586,18 +710,30 @@ export default function ChatPage() {
                   alignSelf: 'flex-end'
                 }}
               />
-              <Button 
-                type="button" 
-                onClick={toggleWebEnabled}
-                variant={isWebEnabled ? "default" : "outline"}
-                className={`shrink-0 h-[40px] w-[40px] self-end rounded-md flex items-center justify-center p-0 ${!isWebEnabled ? 'text-gray-500 border-gray-300' : ''}`}
-                title={isWebEnabled ? "已开启联网" : "点击开启联网"}
-              >
-                <Globe size={16} />
-              </Button>
+
+              {/* 文件上传按钮 */}
+              <div className="shrink-0 self-end">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="image-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('image-upload').click()}
+                  className={`h-[40px] w-[40px] rounded-md flex items-center justify-center p-0 ${uploadedImage ? 'bg-primary text-primary-foreground' : 'text-gray-500 border-gray-300'}`}
+                  title={uploadedImage ? "已选择图片" : "上传图片"}
+                >
+                  <Upload size={16} />
+                </Button>
+              </div>
+
               {isStreaming ? (
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   onClick={stopStreaming}
                   variant="destructive"
                   className="shrink-0 h-[40px] self-end"
@@ -606,9 +742,9 @@ export default function ChatPage() {
                   停止
                 </Button>
               ) : (
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || !input.trim()}
+                <Button
+                  type="submit"
+                  disabled={isLoading || (!input.trim() && !uploadedImage)}
                   className="shrink-0 h-[40px] w-[40px] self-end rounded-md flex items-center justify-center p-0"
                 >
                   <Send size={16} />

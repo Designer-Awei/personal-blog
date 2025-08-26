@@ -21,8 +21,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 确保封面图片目录存在
-    const uploadDir = path.join(process.cwd(), 'public', 'images', 'covers');
+    // 根据用途确定上传目录
+    const isForChat = req.headers['x-upload-purpose'] === 'chat';
+    const uploadDir = isForChat
+      ? path.join(process.cwd(), 'public', 'uploads') // 直接使用uploads目录，添加chat前缀文件名
+      : path.join(process.cwd(), 'public', 'images', 'covers');
+
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
@@ -57,7 +61,8 @@ export default async function handler(req, res) {
           const timestamp = Date.now();
           const originalFilename = uploadedFile.originalFilename || 'image.jpg';
           const fileExtension = path.extname(originalFilename);
-          const newFilename = `cover-${timestamp}${fileExtension}`;
+          const prefix = isForChat ? 'chat-' : 'cover-';
+          const newFilename = `${prefix}${timestamp}${fileExtension}`;
           
           // 移动文件到最终位置
           const finalPath = path.join(uploadDir, newFilename);
@@ -79,10 +84,10 @@ export default async function handler(req, res) {
           }
           
           // 返回图片URL
-          const imageUrl = `/images/covers/${newFilename}`;
-          res.status(200).json({ 
-            message: '上传成功', 
-            imageUrl 
+          const imageUrl = `/uploads/${newFilename}`;
+          res.status(200).json({
+            message: '上传成功',
+            imageUrl
           });
         } catch (fileError) {
           console.error('处理文件时出错:', fileError);
