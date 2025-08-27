@@ -9,6 +9,12 @@
 - 个人资料设置
 - 主题切换
 - AI聊天室（基于SiliconFlow API）
+  - **多模型支持**：支持GLM-4、Qwen、DeepSeek等多种AI模型自由切换
+  - **图片分析**：上传图片进行AI视觉分析，支持多种图像格式
+  - **WEB搜索**：智能联网搜索，提供实时信息和网络资源
+  - **记忆系统**：基于MemU API的对话记忆，保持上下文连续性
+  - **流式响应**：实时流式输出，提升交互体验
+  - **时间查询**：支持北京时间、纽约时间等全球时区查询
 
 ## 本地开发
 
@@ -26,7 +32,10 @@ npm install
 3. 创建环境变量文件
 创建`.env.local`文件，添加以下内容：
 ```
-SILICONFLOW_API_KEY=你的API密钥
+SILICONFLOW_API_KEY=你的SiliconFlow API密钥
+SERPER_API_KEY=你的Serper API密钥（用于WEB搜索）
+MEMU_API_KEY=你的MemU API密钥（用于记忆系统，可选）
+MEMU_API_BASE_URL=https://api.memu.so（MemU API基础URL，可选）
 ```
 
 4. 启动开发服务器
@@ -61,14 +70,62 @@ Vercel生产环境不支持写入文件系统，因此本项目在Vercel环境�
 
 在Vercel部署时，需要设置以下环境变量：
 
-- `SILICONFLOW_API_KEY`: 用于AI聊天室功能的API密钥
+- `SILICONFLOW_API_KEY`: 用于AI聊天室功能的API密钥（必需）
+- `SERPER_API_KEY`: 用于WEB搜索功能的API密钥（必需，用于联网搜索）
+- `MEMU_API_KEY`: 用于记忆系统的API密钥（可选，用于对话记忆）
+- `MEMU_API_BASE_URL`: MemU API的基础URL（可选，默认为 https://api.memu.so）
 
 设置方法：
 1. 在Vercel项目设置中找到"Environment Variables"
 2. 添加上述环境变量及其值
 3. 重新部署项目
 
-### 3. 依赖问题解决
+**注意**：`SERPER_API_KEY` 是必需的环境变量，用于启用WEB搜索功能。如果不配置该变量，聊天室将无法进行联网搜索。
+
+### 3. AI聊天室功能详解
+
+#### 支持的AI模型
+聊天室支持以下AI模型，可在聊天界面中实时切换：
+
+- **GLM-4-9B-0414** (通用对话) - 主力模型，适合日常对话
+- **Qwen3-8B** (通用对话) - 阿里通义千问系列
+- **GLM-4.1V-9B-Thinking** (思考模型) - 支持图片分析
+- **Qwen2.5-7B-Instruct** (通用对话) - 高质量对话模型
+- **DeepSeek-R1-Distill-Qwen-7B** (通用对话) - DeepSeek推理模型
+- **ChatGLM3-6B** (通用对话) - 清华ChatGLM系列
+
+#### 图片上传和分析
+- **支持格式**：支持JPEG、PNG、WebP等常见图片格式
+- **文件大小限制**：最大支持10MB的图片文件
+- **智能压缩**：自动压缩图片以优化传输和分析效率
+- **视觉分析**：使用GLM视觉模型进行详细的图片内容分析
+- **分析维度**：包括主要对象、场景、颜色、布局、文字内容、情感表达等
+
+#### WEB搜索功能
+- **搜索引擎**：基于Google搜索API (Serper)
+- **智能查询分析**：
+  - 自动识别时间查询（北京时间、纽约时间等）
+  - 支持全球主要城市时区查询
+  - 通用话题的智能搜索
+- **搜索结果处理**：
+  - 自动格式化搜索结果
+  - 提供来源链接和引用方式
+  - 支持markdown格式的链接引用
+
+#### 记忆系统
+- **记忆存储**：自动保存对话历史和上下文信息
+- **智能检索**：根据当前对话内容检索相关记忆
+- **上下文连续性**：保持对话的连续性和个性化体验
+- **记忆管理**：支持跨会话的记忆保留和检索
+
+#### 高级功能
+- **流式响应**：实时流式输出，提升交互体验
+- **停止生成**：支持随时中断AI响应生成
+- **超时处理**：30秒自动超时保护
+- **错误处理**：完善的错误处理和用户提示
+- **移动端优化**：支持移动设备的触摸操作和响应式设计
+
+### 5. 依赖问题解决
 
 如果在Vercel部署时遇到以下错误：
 
@@ -93,7 +150,7 @@ npm install remark remark-html
 }
 ```
 
-### 4. 未来改进计划
+### 6. 未来改进计划
 
 为了解决Vercel环境中的数据持久化问题，计划实施以下改进：
 
@@ -111,9 +168,17 @@ personal-blog/
 ├── lib/              # 工具函数和API客户端
 ├── pages/            # 页面和API路由
 │   ├── api/          # 后端API
+│   │   ├── chat.js              # AI聊天API（支持多模型、图片、搜索）
+│   │   ├── search.js            # WEB搜索API（基于Serper）
+│   │   ├── vision-analyze.js    # 图片视觉分析API
+│   │   ├── memory-retrieve.js   # 记忆检索API
+│   │   ├── memory-store.js      # 记忆存储API
+│   │   └── ...                  # 其他API
+│   ├── chat.js      # AI聊天室页面
 │   └── ...           # 前端页面
 ├── posts/            # 文章内容
 ├── public/           # 静态资源
+│   └── uploads/      # 用户上传的文件（图片等）
 └── styles/           # CSS样式
 ```
 
@@ -122,7 +187,11 @@ personal-blog/
 - Next.js - React框架
 - Tailwind CSS - 样式库
 - ShadcnUI - UI组件库
-- SiliconFlow API - AI聊天功能 
+- SiliconFlow API - AI聊天和视觉分析
+- Serper API - WEB搜索功能
+- MemU API - 对话记忆系统
+- Framer Motion - 动画效果
+- Marked - Markdown渲染 
 
 ## 隐私密码设置
 

@@ -28,13 +28,87 @@ import {
   DialogTrigger,
 } from '../components/ui/dialog';
 
-// 配置marked选项，增强Markdown渲染效果
+// 配置marked选项，增强Markdown渲染效果（使用稳定的4.x版本API）
 marked.setOptions({
-  breaks: true, // 启用换行符转换为<br>
-  gfm: true,    // 启用GitHub风格的Markdown
-  headerIds: true, // 为标题添加ID
-  mangle: false // 不转义HTML标签中的内容
+  breaks: true,     // 启用换行符转换为<br>
+  gfm: true,        // 启用GitHub风格的Markdown
+  headerIds: true,  // 为标题添加ID
+  mangle: false,    // 不转义HTML标签中的内容
+  sanitize: false,  // 不清理HTML（允许链接）
+  smartLists: true, // 智能列表
+  smartypants: false // 不启用智能引号（避免链接问题）
 });
+
+// 自定义链接渲染器，确保所有链接在新窗口打开
+const renderer = new marked.Renderer();
+renderer.link = function(href, title, text) {
+  const titleAttr = title ? ` title="${title}"` : '';
+  return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+};
+
+// 应用自定义渲染器
+marked.setOptions({
+  renderer: renderer
+});
+
+/**
+ * 安全的 Markdown 渲染函数
+ * @param {string} content - 要渲染的 Markdown 内容
+ * @returns {string} 渲染后的 HTML
+ */
+const renderMarkdown = (content) => {
+  try {
+    if (!content || typeof content !== 'string') {
+      return '';
+    }
+    
+    // 调试信息已移除以避免流式输出时频繁刷新控制台
+    
+    // 使用稳定的 marked 4.x API
+    const html = marked(content);
+    
+    // 调试信息已移除以避免流式输出时频繁刷新控制台
+    
+    // 检查并修复可能的问题
+    if (typeof html === 'string') {
+      const fixedHtml = html
+        .replace(/href="\[object Object\]"/g, 'href="#"')
+        .replace(/href="undefined"/g, 'href="#"')
+        .replace(/href=""/g, 'href="#"')
+        .replace(/>undefined</g, '>链接<')
+        // 确保所有链接都在新窗口打开（双重保险）
+        .replace(/<a href="([^"]*)"(?![^>]*target=)/g, '<a href="$1" target="_blank" rel="noopener noreferrer"')
+        // 修复可能缺少 rel 属性的链接
+        .replace(/<a href="([^"]*)" target="_blank"(?![^>]*rel=)/g, '<a href="$1" target="_blank" rel="noopener noreferrer"');
+      
+      return fixedHtml;
+    }
+    
+    return html || content;
+    
+  } catch (error) {
+    console.error('[Markdown] 渲染失败:', error);
+    
+    // 兜底：手动处理基础 markdown
+    try {
+      const fallbackHtml = content
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // 粗体
+        .replace(/\*(.*?)\*/g, '<em>$1</em>') // 斜体
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>') // 链接（新窗口打开）
+        .replace(/### (.*?)$/gm, '<h3>$1</h3>') // 三级标题
+        .replace(/## (.*?)$/gm, '<h2>$1</h2>') // 二级标题
+        .replace(/# (.*?)$/gm, '<h1>$1</h1>') // 一级标题
+        .replace(/\n\n/g, '</p><p>') // 段落
+        .replace(/\n/g, '<br>'); // 换行
+      
+      // 兜底解析日志已移除
+      return `<p>${fallbackHtml}</p>`;
+    } catch (fallbackError) {
+      console.error('[Markdown] 兜底解析也失败:', fallbackError);
+      return content;
+    }
+  }
+};
 
 /**
  * 可用的AI模型列表
@@ -956,7 +1030,7 @@ export default function ChatPage() {
                       ) : (
                         <div 
                           className="text-sm prose dark:prose-invert max-w-none"
-                          dangerouslySetInnerHTML={{ __html: marked(message.content) }}
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
                         />
                       )}
                     </div>

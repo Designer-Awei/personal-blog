@@ -267,7 +267,7 @@ async function handleGeneralSearch(query, serperApiKey) {
         q: query,
         gl: 'cn', // 地理位置：中国
         hl: 'zh-cn', // 语言：中文
-        num: 5 // 返回结果数量
+        num: 8 // 返回更多结果数量，提高完整性
       })
     });
 
@@ -283,20 +283,22 @@ async function handleGeneralSearch(query, serperApiKey) {
       return `关于"${query}"的搜索未找到相关结果。可能是因为该主题较为专业或搜索词过于具体，建议尝试其他关键词或更通用的表述。`;
     }
 
-    // 格式化搜索结果
-    const results = data.organic.slice(0, 5).map((result, index) => {
-      let formatted = `${index + 1}. ${result.title || '无标题'}\n`;
+    // 格式化搜索结果 - 优化格式便于LLM理解和引用
+    const results = data.organic.slice(0, 8).map((result, index) => {
+      const shortTitle = result.title ? result.title.substring(0, 50) + (result.title.length > 50 ? '...' : '') : '无标题';
+      let formatted = `### 来源 ${index + 1}: ${shortTitle}\n`;
+      formatted += `**完整标题**: ${result.title || '无标题'}\n`;
 
       if (result.snippet) {
-        formatted += `${result.snippet}\n`;
+        formatted += `**关键信息**: ${result.snippet}\n`;
       }
 
       if (result.link) {
-        formatted += `[来源](${result.link})`;
+        formatted += `**引用方式**: [查看原文](${result.link}) 或 根据[${shortTitle}](${result.link})的报道`;
       }
 
       return formatted;
-    }).join('\n\n');
+    }).join('\n\n---\n\n');
 
     return results;
 
