@@ -4,7 +4,27 @@
   "functions": {
     "pages/api/**/*.js": {
       "memory": 1024,
+      "maxDuration": 15
+    },
+    "pages/api/chat.js": {
+      "memory": 1024,
+      "maxDuration": 20
+    },
+    "pages/api/memory-retrieve.js": {
+      "memory": 1024,
       "maxDuration": 10
+    },
+    "pages/api/memory-store.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "pages/api/vision-analyze.js": {
+      "memory": 1024,
+      "maxDuration": 15
+    },
+    "pages/api/search.js": {
+      "memory": 1024,
+      "maxDuration": 15
     },
     "pages/posts/[slug].js": {
       "memory": 1024,
